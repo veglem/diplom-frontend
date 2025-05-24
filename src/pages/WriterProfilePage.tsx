@@ -4,40 +4,118 @@ import {
     Typography,
     Avatar,
     Button,
-    Card,
-    CardContent,
-    LinearProgress,
-    Grid,
-    Container,
-    useTheme,
     Paper,
-    Stack,
     Divider,
-    IconButton
+    Accordion,
+    AccordionSummary,
+    AccordionDetails
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete'
 import { useDevice } from '../utils/DeviceContext';
 import PostEditorModal from '../components/Post/PostEditorModal';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate, useParams } from 'react-router-dom';
-import { writerService } from '../services/writerService';
+import { useNavigate } from 'react-router-dom';
 import { Writer, Post } from '../types/user';
+import { useWriter, WriterProvider } from '../contexts/WriterContext';
+import { PostProvider, usePost } from '../contexts/PostContext';
+import { writerService } from '../services/writerService';
 import EditableSubscriptionLevelCard from '../components/SubscriptionCard/EditableSubscriptionLevelCard';
 import { HeadImage } from '../components/HeadImage/HeadImage';
 import { BaseGoal } from '../components/Goal/BaseGoal';
 import EditableBaseGoal from '../components/Goal/EditableBaseGoal';
 import {EditableHeadImage} from '../components/HeadImage/EditableHeadImage';
 
-// Компонент карточки поста
-const PostCard: React.FC<{ post: Post }> = ({ post }) => {
+// Компонент карточки поста с данными из props
+const PostCardContent: React.FC<{ post: Post }> = ({ post }) => {
+    // Проверяем, есть ли у поста аттачи
+    const hasAttachments = post.attachment_ids && post.attachment_ids.length > 0;
+    
     return (
         <Paper elevation={0} variant="outlined" sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>
                 {post.title}
             </Typography>
             <div dangerouslySetInnerHTML={{ __html: post.content }} />
+            
+            {/* Отображаем аттачи, если они есть */}
+            {hasAttachments && (
+                <Box sx={{ mt: 2 }}>
+                    <Accordion>
+                        <AccordionSummary>Прикрепленные файлы</AccordionSummary>
+                        <AccordionDetails>
+                            {post.attachment_ids?.map((attachmentId, index) => {
+                            const attachmentType = post.attachment_types?.[index] || '';
+                            const isImage = attachmentType.startsWith('image/');
+                            const isVideo = attachmentType.startsWith('video/');
+                            return (
+                                    <Box
+                                        sx={{
+                                            position: 'relative',
+                                            borderRadius: 1,
+                                            border: '1px solid #e0e0e0',
+                                        }}
+                                    >
+                                        {isImage ? (
+                                            <img
+                                                src={attachmentId}
+                                                alt={`Attachment ${index + 1}`}
+                                                style={{
+                                                    width: '100%',
+                                                    height: '100%',
+                                                    objectFit: 'cover',
+                                                }}
+                                            />
+                                        ) : isVideo ? (
+                                            <video
+                                                src={attachmentId}
+                                                style={{
+                                                    width: '100%',
+                                                    height: '100%',
+                                                    objectFit: 'cover',
+                                                }}
+                                                controls
+                                            />
+                                        ) : null}
+                                    </Box>
+                                
+                            );
+                        })}
+                        </AccordionDetails>
+                    </Accordion>
+                </Box>
+            )}
         </Paper>
     );
+};
+
+// Обертка для PostCard с использованием PostContext
+const PostCard: React.FC<{ post: Post }> = ({ post }) => {
+    return <PostCardWithContext postId={post.id} />;
+};
+
+// Компонент PostCard с использованием PostContext
+const PostCardWithContext: React.FC<{ postId: string }> = ({ postId }) => {
+    const { post, attachmentIds, isLoading } = usePost();
+    
+    if (isLoading || !post) {
+        return (
+            <Paper elevation={0} variant="outlined" sx={{ p: 3, mb: 3, display: 'flex', justifyContent: 'center' }}>
+                <Typography>Загрузка...</Typography>
+            </Paper>
+        );
+    }
+
+    console.log(attachmentIds)
+    
+    return <PostCardContent post={{
+        ...post,
+        attachment_ids: attachmentIds.map(val => {
+            return val.id
+        }),
+        attachment_types: attachmentIds.map(val => {
+            // Определяем тип аттача по расширению файла
+            return val.type;
+        })
+    }} />;
 };
 
 // Компонент профиля для десктопа
@@ -131,7 +209,9 @@ const DesktopWriterProfile: React.FC<{
 
                     {posts.length > 0 ? (
                         posts.map(post => (
-                            <PostCard key={post.id} post={post} />
+                            <PostProvider key={post.id} postId={post.id}>
+                                <PostCard key={post.id} post={post} />
+                            </PostProvider>
                         ))
                     ) : (
                         <Paper elevation={0} variant="outlined" sx={{ p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -261,7 +341,9 @@ const MobileWriterProfile: React.FC<{
             <Box sx={{ px: 2 }}>
                 {posts.length > 0 ? (
                     posts.map(post => (
-                        <PostCard key={post.id} post={post} />
+                        <PostProvider postId={post.id}>
+                            <PostCard key={post.id} post={post} />
+                        </PostProvider>
                     ))
                 ) : (
                     <Paper elevation={0} variant="outlined" sx={{ p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -275,81 +357,49 @@ const MobileWriterProfile: React.FC<{
     );
 };
 
-/**
- * Страница профиля писателя
- * Адаптируется под тип устройства
- */
-const WriterProfilePage: React.FC = () => {
+// Компонент профиля писателя с использованием WriterContext
+const WriterProfileWithContext: React.FC = () => {
     const { isMobile } = useDevice();
-    const theme = useTheme();
     const [isEditorOpen, setIsEditorOpen] = useState(false);
-    const [posts, setPosts] = useState<Post[]>([]);
-    const [writer, setWriter] = useState<Writer | undefined>(undefined);
-
-    const { user } = useAuth();
-    const navigate = useNavigate();
-    const [writerId, setWriterId] = useState("")
-
-
-
-    useEffect(() => {
-        if (user?.isAuthor != true) {
-            navigate('/settings/profile');
-        }
-
-        if (!writerId && user?.id) {
-            console.log("getting id")
-            writerService.getSelfWriterId(user?.id).then(data => {
-                console.log(data)
-                if (data) {
-                    setWriterId(data)
-                }
+    
+    const { 
+        writer, 
+        postIds, 
+        isLoading, 
+        createPost,
+        refreshPosts
+    } = useWriter();
+    
+    const handleCreatePost = (newPost: { title: string, content: string, attachments: File[] }) => {
+        createPost(newPost.title, newPost.content, newPost.attachments)
+            .then(() => {
+                refreshPosts();
             })
-        }
-        if (writerId) {
-            console.log("getting profile")
-            writerService.getWriterProfile(writerId)
-                .then(data => {
-                    setWriter(data);
-                })
-                .catch(error => {
-                    console.error("Error fetching writer profile:", error);
-                });
-
-            writerService.getWriterPosts(writerId)
-                .then(data => {
-                    setPosts(data);
-                })
-                .catch(error => {
-                    console.error("Error fetching writer posts:", error);
-                });
-        }
-
-    }, [user, navigate, writerId]);
-
-    const handleCreatePost = (newPost: Omit<Post, 'id' | 'authorId'>) => {
-        if (writerId) {
-            const post: Post = {
-                ...newPost,
-                id: Date.now().toString(),
-                authorId: writerId,
-            };
-            setPosts([post, ...posts]);
-        }
+            .catch(error => {
+                console.error("Error creating post:", error);
+            });
     };
-
+    
+    if (isLoading) {
+        return (
+            <Box sx={{ py: 2, display: 'flex', justifyContent: 'center' }}>
+                <Typography>Загрузка профиля...</Typography>
+            </Box>
+        );
+    }
+    
     return (
         <Box sx={{ py: 2 }}>
             {isMobile ? (
                 <MobileWriterProfile
-                    writer={writer}
-                    posts={posts}
+                    writer={writer || undefined}
+                    posts={postIds.map(id => ({ id, title: '', content: '', authorId: writer?.id || '' }))}
                     onCreatePostClick={() => setIsEditorOpen(true)}
                 />
             ) : (
                 <DesktopWriterProfile
-                    writer={writer}
-                    posts={posts}
+                    writer={writer || undefined}
+                    posts={postIds.map(id => ({ id, title: '', content: '', authorId: writer?.id || '' }))}
                     onCreatePostClick={() => setIsEditorOpen(true)}
                 />
             )}
@@ -359,6 +409,46 @@ const WriterProfilePage: React.FC = () => {
                 onSave={handleCreatePost}
             />
         </Box>
+    );
+};
+
+/**
+ * Страница профиля писателя
+ * Адаптируется под тип устройства
+ */
+const WriterProfilePage: React.FC = () => {
+    const { user } = useAuth();
+    const navigate = useNavigate();
+    const [writerId, setWriterId] = useState<string | null>(null);
+    
+    useEffect(() => {
+        if (user?.isAuthor !== true) {
+            navigate('/settings/profile');
+            return;
+        }
+        
+        if (user?.id) {
+            // Используем ID пользователя как ID писателя
+            writerService.getSelfWriterId(user.id).then(data => {
+                if (data) {
+                    setWriterId(data);
+                }
+            });
+        }
+    }, [user, navigate]);
+    
+    if (!writerId) {
+        return (
+            <Box sx={{ py: 2, display: 'flex', justifyContent: 'center' }}>
+                <Typography>Загрузка...</Typography>
+            </Box>
+        );
+    }
+    
+    return (
+        <WriterProvider writerId={writerId}>
+            <WriterProfileWithContext />
+        </WriterProvider>
     );
 };
 

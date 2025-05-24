@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -20,7 +20,7 @@ interface Post {
 interface PostEditorModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (post: Omit<Post, 'id' | 'createdAt'>) => void;
+  onSave: (post: { title: string, content: string, attachments: File[] }) => void;
 }
 
 const PostEditorModal: React.FC<PostEditorModalProps> = ({
@@ -30,20 +30,27 @@ const PostEditorModal: React.FC<PostEditorModalProps> = ({
 }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [attachments, setAttachments] = useState<File[]>([]);
+
+  // Сбрасываем состояние при закрытии модального окна
+  useEffect(() => {
+    if (!open) {
+      setTitle('');
+      setContent('');
+      setAttachments([]);
+    }
+  }, [open]);
 
   const handleSave = () => {
     onSave({
       title,
       content,
+      attachments,
     });
-    setTitle('');
-    setContent('');
     onClose();
   };
 
   const handleClose = () => {
-    setTitle('');
-    setContent('');
     onClose();
   };
 
@@ -67,6 +74,8 @@ const PostEditorModal: React.FC<PostEditorModalProps> = ({
           <PostEditor
             content={content}
             onChange={setContent}
+            attachments={attachments}
+            onAttachmentsChange={setAttachments}
           />
         </Box>
       </DialogContent>

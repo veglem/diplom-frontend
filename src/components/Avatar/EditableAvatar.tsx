@@ -3,6 +3,7 @@ import { BaseAvatar, BaseAvatarProps } from "./BaseAvatar";
 import IconButton from "@mui/material/IconButton";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera"
 import ImageCropModal from "../UserSettings/ImageCropModal";
+import {v4 as uuidv4} from "uuid"
 
 interface EditableAvatarProps extends BaseAvatarProps {
     onAvatarUpload: (file: File) => Promise<void>
@@ -25,7 +26,7 @@ export const EditableAvatar: React.FC<EditableAvatarProps> = ({ src, username, s
         // Преобразуем URL в File
         const response = await fetch(croppedImage);
         const blob = await response.blob();
-        const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+        const file = new File([blob], `avatar-${uuidv4()}.jpg`, { type: 'image/jpeg' });
 
         await onAvatarUpload(file);
 

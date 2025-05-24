@@ -32,4 +32,6 @@ export interface Post {
   title: string;
   content: string;
   authorId: string;
+  attachment_ids?: string[];
+  attachment_types?: string[];
 }

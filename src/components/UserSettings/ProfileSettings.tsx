@@ -1,17 +1,13 @@
-import { Avatar, Box, IconButton, Typography, Stack, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, useMediaQuery, useTheme } from "@mui/material";
+import { Box, IconButton, Typography, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, useMediaQuery, useTheme } from "@mui/material";
 import React, { useState } from "react";
 import { UserData } from "../../types/user";
 import { useDevice } from "../../utils/DeviceContext";
-import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
-import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
 import PasswordChangeModal from "./PasswordChangeModal";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router";
 import { UserService } from "../../services/userService";
-import ImageCropModal from "./ImageCropModal";
 import BecomeAuthorModal from "./BecomeAuthorModal";
-import { db } from "../../utils/db";
 import { EditableAvatar } from "../Avatar/EditableAvatar";
 
 interface ProfileSettingsProps {
@@ -146,7 +142,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
     const theme = useTheme();
     const { isMobile } = useDevice();
     const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
-    const { logout, user, updateUser } = useAuth();
+    const { logout, user, updateUser, becomeAuthor } = useAuth();
     const navigate = useNavigate();
 
 
@@ -309,10 +305,8 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                 onClose={() => setBecomeAuthorModalOpen(false)}
                 onSubmit={async (name, description) => {
                     if (user) {
-                        UserService.becomeCreator(user.id, name, description);
-                        // Обновляем контекст аутентификации
-                        await onUpdateProfile({ isAuthor: true, username: user.username, login: user.login, avatar: user.avatar });
-                        updateUser({...user, isAuthor: true})
+                        becomeAuthor(name, description)
+
                         setBecomeAuthorModalOpen(false);
                     }
                 }}

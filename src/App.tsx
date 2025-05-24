@@ -8,6 +8,7 @@ import { ThemeProvider } from '@emotion/react';
 import themes from './theme';
 import { BrowserRouter, Route, Routes, useOutletContext } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import UserSettingsPage from './pages/UserSettingsPage';
 import { UserSettingsTabProps } from './components/UserSettings/UserSettingsTab';
@@ -56,7 +57,8 @@ const App: React.FC = () => {
       <AuthProvider>
         <ThemePaletteModeContext.Provider value={themePaletteModeContextProvider}>
         <ThemeProvider theme={themeProvider}>
-          <DeviceProvider>
+          <NotificationProvider>
+            <DeviceProvider>
             <DeviceRenderer
               DesktopComponent={({ children }) => (
                 <DesktopLayout title="Адаптивный интерфейс - Десктоп">
@@ -136,7 +138,8 @@ const App: React.FC = () => {
                 </Route>
               </Routes>
             </DeviceRenderer>
-          </DeviceProvider>
+            </DeviceProvider>
+          </NotificationProvider>
         </ThemeProvider>
         </ThemePaletteModeContext.Provider>
       </AuthProvider>

@@ -1,4 +1,5 @@
 import { UserData } from '../types/user';
+import { fileToUrl } from '../utils/databaseUtils';
 import { db } from '../utils/db';
 
 export class UserService {
@@ -50,8 +51,10 @@ export class UserService {
      * @param photoUrl URL нового аватара
      * TODO: Заменить на реальный HTTP запрос POST /api/users/{userId}/avatar
      */
-    static updateUserAvatar(userId: string, photoUrl: string): void {
-        db.updateUserProfilePhoto(photoUrl, userId);
+    static updateUserAvatar = async (userId: string, photo: File): Promise<string> => {
+        const url = await fileToUrl(photo);
+        db.updateUserProfilePhoto(url, userId);
+        return url;
     }
 
     /**
