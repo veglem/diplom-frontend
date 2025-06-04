@@ -3,6 +3,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Box, IconBut
 import ReactCrop, { Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import CloseIcon from '@mui/icons-material/Close';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface HeadImageCropModalProps {
     open: boolean;
@@ -17,6 +18,7 @@ const HeadImageCropModal: React.FC<HeadImageCropModalProps> = ({
     imageFile,
     onSave
 }) => {
+    const { lang } = useLanguage();
     const [imageUrl, setImageUrl] = useState<string>('');
 
     useEffect(() => {
@@ -49,7 +51,7 @@ const HeadImageCropModal: React.FC<HeadImageCropModalProps> = ({
         const ctx = canvas.getContext('2d');
 
         if (!ctx) {
-            throw new Error('No 2d context');
+            throw new Error(lang.NO_2D_CONTEXT);
         }
 
         ctx.drawImage(
@@ -67,7 +69,7 @@ const HeadImageCropModal: React.FC<HeadImageCropModalProps> = ({
         return new Promise((resolve) => {
             canvas.toBlob((blob) => {
                 if (!blob) {
-                    throw new Error('Canvas is empty');
+                    throw new Error(lang.CANVAS_EMPTY);
                 }
                 const file = new File([blob], imageFile.name, {
                     type: 'image/jpeg',
@@ -87,7 +89,7 @@ const HeadImageCropModal: React.FC<HeadImageCropModalProps> = ({
             onSave(croppedImageUrl);
             onClose();
         } catch (error) {
-            console.error('Error cropping image:', error);
+            console.error(lang.ERROR_CROPPING_IMAGE, error);
         } finally {
             setIsLoading(false);
         }
@@ -105,7 +107,7 @@ const HeadImageCropModal: React.FC<HeadImageCropModalProps> = ({
                 py: isSmallScreen ? 1.5 : 2,
                 fontSize: isSmallScreen ? '1.1rem' : '1.25rem'
             }}>
-                Обрезка изображения шапки
+                {lang.HEADER_IMAGE_CROP}
                 <IconButton
                     aria-label="close"
                     onClick={onClose}
@@ -138,7 +140,7 @@ const HeadImageCropModal: React.FC<HeadImageCropModalProps> = ({
                         <img 
                             ref={(img) => setImageRef(img)}
                             src={imageUrl} 
-                            alt="Загруженное изображение"
+                            alt={lang.UPLOADED_IMAGE}
                             style={{ maxWidth: '100%', maxHeight: '500px' }}
                         />
                     </ReactCrop>
@@ -151,7 +153,7 @@ const HeadImageCropModal: React.FC<HeadImageCropModalProps> = ({
                     color="inherit"
                     size={isSmallScreen ? "small" : "medium"}
                 >
-                    Отмена
+                    {lang.CANCEL}
                 </Button>
                 <Button
                     onClick={handleSave}
@@ -160,7 +162,7 @@ const HeadImageCropModal: React.FC<HeadImageCropModalProps> = ({
                     disabled={isLoading}
                     size={isSmallScreen ? "small" : "medium"}
                 >
-                    {isLoading ? 'Сохранение...' : 'Сохранить'}
+                    {isLoading ? lang.SAVING : lang.SAVE}
                 </Button>
             </DialogActions>
         </Dialog>

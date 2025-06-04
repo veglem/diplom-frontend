@@ -69,8 +69,9 @@ export class UserService {
         db.updatePassword(newPassword, userId);
     }
 
-    static becomeCreator(userId: string, name: string, description: string): void {
+    static becomeCreator(userId: string, name: string, description: string): string {
         const creatorId = Math.random().toString(36).substr(2, 9);
         db.becameCreator(creatorId, userId, name, description);
+        return creatorId;
     }
 }

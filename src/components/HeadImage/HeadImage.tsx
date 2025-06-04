@@ -8,7 +8,7 @@ interface HeadImage {
 export const HeadImage: React.FC<HeadImage> = ({src}) => {
     return <>
         <Box width='100%' height={200} sx={{ overflow: 'hidden' }}>
-            <img src={src} width='100%' height={200} style={{ objectFit: 'cover' }}></img>
+            <img src={src != '' ? `/images/user/${src}.jpg` : ''} width='100%' height={200} style={{ objectFit: 'cover' }}></img>
         </Box>
     </>
 }

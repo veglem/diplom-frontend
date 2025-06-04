@@ -25,8 +25,10 @@ import MenuIcon from '@mui/icons-material/Menu';
 import LogoutIcon from '@mui/icons-material/Logout';
 import BaseLayout from './BaseLayout';
 import UserSettings, { mockUserData } from '../components/UserSettings';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 // Ширина боковой панели
 const DRAWER_WIDTH_OPEN = 240;
@@ -68,8 +70,9 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = ({
   children, 
 }) => {
   const [drawerOpen, setDrawerOpen] = React.useState(true);
-  const { user } = useAuth();
+  const { user, selfAuthorId } = useAuth();
   let navigate = useNavigate();
+  const {lang} = useLanguage();
 
   const handleLogout = () => {
     navigate('/settings/profile');
@@ -107,7 +110,7 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = ({
               <Typography variant='h6'>{user.username}</Typography>
               <AvatarWrapper onClick={handleLogout}>
               <Avatar
-                src={user.avatar}
+                src={user.avatar != null ? `/images/user/${user.avatar}.jpg` : ''}
                 alt={user.username}
                 className="avatar"
                 sx={{
@@ -146,32 +149,32 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = ({
         }}
       >
         <List>
-          <Tooltip title={!drawerOpen ? "Главная" : ""} placement="right">
+          <Tooltip title={!drawerOpen ? lang.MAIN_PAGE : ""} placement="right">
             <ListItemButton sx={{ justifyContent: 'flex-start', px: 2 , height: '4em'}} onClick={() => {navigate("/")}}>
               <ListItemIcon sx={{ minWidth: drawerOpen ? 36 : 'auto', mr: drawerOpen ? 2 : 0, margin: '0.25em'}}>
                 <HomeIcon color='primary' />
               </ListItemIcon>
-              {drawerOpen && <ListItemText primary="Главная" />}
+              {drawerOpen && <ListItemText primary={lang.MAIN_PAGE} />}
             </ListItemButton>
           </Tooltip>
           
-          <Tooltip title={!drawerOpen ? "Подписки" : ""} placement="right">
+          <Tooltip title={!drawerOpen ? lang.SUBSCRIPTIONS : ""} placement="right">
             <ListItemButton sx={{ justifyContent: 'flex-start', px: 2 , height: '4em'}} onClick={() => {navigate("/subscribtions")}}>
               <ListItemIcon sx={{ minWidth: drawerOpen ? 36 : 'auto', mr: drawerOpen ? 2 : 0, margin: '0.25em'}}>
                 <FavoriteIcon color='primary' />
               </ListItemIcon>
-              {drawerOpen && <ListItemText primary="Подписки" />}
+              {drawerOpen && <ListItemText primary={lang.SUBSCRIPTIONS} />}
             </ListItemButton>
           </Tooltip>
           
-          <Tooltip title={!drawerOpen ? "Настройки" : ""} placement="right">
-            <ListItemButton sx={{ justifyContent: 'flex-start', px: 2 , height: '4em'}} onClick={() => {navigate("/writer-profile")}}>
+          {selfAuthorId != null && (<Tooltip title={!drawerOpen ? lang.MY_PAGE : ""} placement="right">
+            <ListItemButton sx={{ justifyContent: 'flex-start', px: 2 , height: '4em'}} onClick={() => {navigate(`/author/${selfAuthorId}`)}}>
               <ListItemIcon sx={{ minWidth: drawerOpen ? 36 : 'auto', mr: drawerOpen ? 2 : 0, margin: '0.25em'}}>
-                <SettingsIcon color='primary' />
+                <AccountCircleIcon color='primary' />
               </ListItemIcon>
-              {drawerOpen && <ListItemText primary="Настройки" />}
+              {drawerOpen && <ListItemText primary={lang.MY_PAGE} />}
             </ListItemButton>
-          </Tooltip>
+          </Tooltip>)}
         </List>
         <Divider />
       </Drawer>

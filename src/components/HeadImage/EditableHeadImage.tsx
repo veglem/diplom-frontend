@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, IconButton, Modal, Typography, Button } from "@mui/material";
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from "@mui/icons-material/Delete";
+import { useLanguage } from '../../contexts/LanguageContext';
 import { HeadImage } from './HeadImage';
 import HeadImageCropModal from './HeadImageCropModal';
 import ImageUploadModal from './ImageUploadModal';
@@ -19,6 +20,7 @@ export const EditableHeadImage: React.FC<EditableHeadImageProps> = ({
     onUpdate, 
     onDelete 
 }) => {
+    const { lang } = useLanguage();
     const [isHovered, setIsHovered] = useState(false);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [cropModalOpen, setCropModalOpen] = useState(false);
@@ -74,13 +76,6 @@ export const EditableHeadImage: React.FC<EditableHeadImageProps> = ({
                     >
                         <EditIcon />
                     </IconButton>
-                    <IconButton 
-                        onClick={handleOpenDeleteModal} 
-                        aria-label="delete"
-                        size="small"
-                    >
-                        <DeleteIcon />
-                    </IconButton>
                 </Box>
             )}
 
@@ -103,17 +98,17 @@ export const EditableHeadImage: React.FC<EditableHeadImageProps> = ({
                     p: 4,
                 }}>
                     <Typography id="delete-modal-title" variant="h6" component="h2">
-                        Подтверждение удаления
+                        {lang.DELETE_CONFIRMATION}
                     </Typography>
                     <Typography id="delete-modal-description" sx={{ mt: 2 }}>
-                        Вы уверены, что хотите удалить изображение?
+                        {lang.DELETE_IMAGE_CONFIRMATION}
                     </Typography>
                     <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-around' }}>
                         <Button onClick={handleCloseDeleteModal} variant="contained" color="primary">
-                            Отмена
+                            {lang.CANCEL}
                         </Button>
                         <Button onClick={handleDelete} variant="contained" color="error">
-                            Удалить
+                            {lang.DELETE}
                         </Button>
                     </Box>
                 </Box>

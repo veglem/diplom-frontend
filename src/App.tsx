@@ -14,6 +14,8 @@ import UserSettingsPage from './pages/UserSettingsPage';
 import { UserSettingsTabProps } from './components/UserSettings/UserSettingsTab';
 import { CustomizationSettings, NotificationSettings, ProfileSettings } from './components/UserSettings';
 import WriterProfilePage from './pages/WriterProfilePage';
+import FollowsPage from './pages/FollowsPage';
+import { LanguageProvider } from './contexts/LanguageContext';
 
 export const ThemePaletteModeContext = React.createContext({
   setThemeMode: (mode: string) => { }
@@ -54,10 +56,12 @@ const App: React.FC = () => {
 
   return (
     <BrowserRouter>
-      <AuthProvider>
         <ThemePaletteModeContext.Provider value={themePaletteModeContextProvider}>
         <ThemeProvider theme={themeProvider}>
+          
           <NotificationProvider>
+            <LanguageProvider>
+            <AuthProvider>
             <DeviceProvider>
             <DeviceRenderer
               DesktopComponent={({ children }) => (
@@ -75,7 +79,7 @@ const App: React.FC = () => {
                 <Route path='/' element={<HomePage />} />
                 <Route path='subscribtions' element={
                   <ProtectedRoute>
-                    <HomePage />
+                    <FollowsPage />
                   </ProtectedRoute>
                 } />
                 <Route path='writer-profile' element={
@@ -139,10 +143,11 @@ const App: React.FC = () => {
               </Routes>
             </DeviceRenderer>
             </DeviceProvider>
+            </AuthProvider>
+            </LanguageProvider>
           </NotificationProvider>
         </ThemeProvider>
         </ThemePaletteModeContext.Provider>
-      </AuthProvider>
     </BrowserRouter>
   );
 };

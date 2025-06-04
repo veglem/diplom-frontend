@@ -1,15 +1,22 @@
 import { db } from "../utils/db";
 import { Writer, Post } from "../types/user";
 import { fileToUrl } from "../utils/databaseUtils";
+import { api } from "../utils/api";
+import { useWriter } from "../contexts/WriterContext";
+import { useNotification } from "../contexts/NotificationContext";
+import { fi, is } from "date-fns/locale";
+import { Comment } from "../contexts/PostContext";
 
 class WriterService {
+
+  
   /**
    * Получить ID писателя для текущего пользователя
    * @param userId ID пользователя
    * @returns ID писателя или undefined, если пользователь не является писателем
    */
   async getSelfWriterId(userId: string): Promise<string | undefined> {
-    return await db.checkIfCreator(userId)?.creator_id;
+    return (await api.getProfile()).creator_id;
   }
 
   /**
@@ -19,31 +26,31 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос GET /api/writers/{writerId}/profile
    */
   async getWriterProfile(writerId: string): Promise<Writer | undefined> {
-    const creatorInfo = db.creatorInfo(writerId);
-    if (!creatorInfo) return undefined;
+    const creatorInfo = await api.getCreatorPage(writerId);
 
-    const userProfile = db.userProfile(creatorInfo.user_id);
-    if (!userProfile) return undefined;
-
-    return {
-      id: creatorInfo.user_id,
-      username: userProfile.display_name,
-      login: userProfile.login,
-      avatar: creatorInfo.profile_photo || userProfile.profile_photo,
-      isAuthor: true,
-      bio: creatorInfo.description || "",
-      goal: {
-        current: creatorInfo.money_got,
-        target: creatorInfo.money_needed
-      },
-      subscriptions: creatorInfo.followers_count,
-      notificationSettings: {
-        newPosts: true,
-        news: true,
-        commentReplies: true,
-        commentLikes: true
-      }
-    };
+      return {
+        id: creatorInfo.creator_info.user_id,
+        username: creatorInfo.creator_info.name,
+        login: creatorInfo.creator_info.name,
+        avatar: creatorInfo.creator_info.profile_photo,
+        isAuthor: creatorInfo.is_my_page,
+        bio: creatorInfo.creator_info.description,
+        goal: {
+          aim: creatorInfo.aim.description,
+          current: creatorInfo.aim.money_got,
+          target: creatorInfo.aim.money_needed
+        },
+        subscriptions: creatorInfo.creator_info.followers_count,
+        notificationSettings: {
+          newPosts: true,
+          news: true,
+          commentReplies: true,
+          commentLikes: true
+        },
+        profilePhoto: creatorInfo.creator_info.profile_photo,
+        coverPhoto: creatorInfo.creator_info.cover_photo,
+        isMyPage: creatorInfo.is_my_page
+      };
   }
 
   /**
@@ -53,8 +60,10 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос GET /api/writers/{writerId}/posts/ids
    */
   async getWriterPostIds(writerId: string): Promise<string[]> {
-    const posts = db.creatorPosts(writerId);
-    return posts.map(post => post.post_id);
+    const creatorInfo = await api.getCreatorPage(writerId);
+
+    if (!creatorInfo) return [];
+    return creatorInfo.posts.map(post => (post.id))
   }
 
   /**
@@ -64,14 +73,20 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос GET /api/writers/{writerId}/posts
    */
   async getWriterPosts(writerId: string): Promise<Post[]> {
-    const posts = db.creatorPosts(writerId);
-    
-    return posts.map(post => ({
-      id: post.post_id,
-      title: post.title || "Без названия",
-      content: post.post_text || "",
-      authorId: writerId
-    }));
+    const creatorInfo = await api.getCreatorPage(writerId);
+
+    if (!creatorInfo) return [];
+    return creatorInfo.posts.map(post => ({
+        id: post.id,
+        title: post.title,
+        content: post.text,
+        authorId: post.creator,
+        attachment_ids: post.attachments.map(attachment => (attachment.id)),
+        attachment_types: post.attachments.map(attachment => (attachment.type)),
+        likes_count: post.likes_count,
+        is_avalible: post.is_available,
+        subscriptions: post.subscriptions.map(it => it.id ?? '')
+    }))
   }
 
   /**
@@ -81,8 +96,10 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос GET /api/writers/{writerId}/followers/count
    */
   async getFollowersCount(writerId: string): Promise<number> {
-    const creatorInfo = db.creatorInfo(writerId);
-    return creatorInfo?.followers_count || 0;
+    const creatorInfo = await api.getCreatorPage(writerId);
+
+    if (!creatorInfo) return 0;
+    return creatorInfo.creator_info.followers_count
   }
 
   /**
@@ -92,7 +109,7 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос POST /api/writers/{writerId}/followers
    */
   async followWriter(userId: string, writerId: string): Promise<void> {
-    db.follow(userId, writerId);
+    await api.follow(writerId);
   }
 
   /**
@@ -102,7 +119,7 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос DELETE /api/writers/{writerId}/followers
    */
   async unfollowWriter(userId: string, writerId: string): Promise<void> {
-    db.unfollow(userId, writerId);
+    await api.unfollow(writerId);
   }
 
   /**
@@ -113,7 +130,7 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос GET /api/writers/{writerId}/followers/{userId}
    */
   async isFollowing(userId: string, writerId: string): Promise<boolean> {
-    return !!db.checkIfFollow(userId, writerId);
+    return (await api.getCreatorPage(writerId)).follows;
   }
 
   /**
@@ -122,17 +139,11 @@ class WriterService {
    * @param data Новые данные профиля
    * TODO: Заменить на реальный HTTP запрос PATCH /api/writers/{writerId}/profile
    */
-  async updateWriterProfile(writerId: string, data: { name?: string; description?: string; }): Promise<void> {
-    const { name, description } = data;
-    const creatorInfo = db.creatorInfo(writerId);
-    
-    if (!creatorInfo) return;
-    
-    db.updateCreatorData(
-      name || creatorInfo.name,
-      description || creatorInfo.description || "",
-      writerId
-    );
+  async updateWriterProfile(writerId: string, data: { name: string; description: string; }): Promise<void> {
+    await api.updateCreatorData({
+        name: data.name,
+        description: data.description
+      })
   }
 
   /**
@@ -143,8 +154,9 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос POST /api/writers/{writerId}/avatar
    */
   async updateWriterAvatar(writerId: string, photo: File): Promise<string> {
-    const url = await fileToUrl(photo);
-    db.updateCreatorProfilePhoto(url, writerId);
+    const creatorData = await api.getCreatorPage(writerId);
+
+    const url = await api.updateCreatorProfilePhoto(photo, creatorData.creator_info.profile_photo ?? '00000000-0000-0000-0000-000000000000')
     return url;
   }
 
@@ -156,8 +168,8 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос POST /api/writers/{writerId}/cover
    */
   async updateWriterCover(writerId: string, photo: File): Promise<string> {
-    const url = await fileToUrl(photo);
-    db.updateCoverPhoto(url, writerId);
+    const creatorData = await api.getCreatorPage(writerId);
+    const url = await api.updateCreatorCoverPhoto(photo, creatorData.creator_info.cover_photo ?? '00000000-0000-0000-0000-000000000000')
     return url;
   }
 
@@ -169,10 +181,13 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос POST /api/writers/{writerId}/goal
    */
   async updateWriterGoal(writerId: string, aim: string, moneyNeeded: number): Promise<void> {
-    const creatorInfo = db.creatorInfo(writerId);
-    if (!creatorInfo) return;
-    
-    db.addAim(aim, creatorInfo.money_got, moneyNeeded, writerId);
+    const creator = await api.getCreatorPage(writerId)
+    await api.createAim({
+      creator_id: writerId,
+      description: aim,
+      money_needed: moneyNeeded,
+      money_got: creator.aim.money_got
+    })
   }
 
   /**
@@ -182,14 +197,16 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос GET /api/posts/{postId}
    */
   async getPost(postId: string): Promise<Post | undefined> {
-    const post = db.getPost(postId);
-    if (!post) return undefined;
-    
+    const post = await api.getPost(postId);
+
     return {
-      id: post.post_id,
-      title: post.title || "Без названия",
-      content: post.post_text || "",
-      authorId: post.creator_id
+      id: post.post.id,
+      title: post.post.title || "Без названия",
+      content: post.post.text || "",
+      authorId: post.post.creator,
+      likes_count: post.post.likes_count,
+      is_avalible: post.post.is_available,
+      subscriptions: post.post?.subscriptions?.map(it => it.id ?? '') ?? []
     };
   }
 
@@ -202,17 +219,15 @@ class WriterService {
    * @returns ID созданного поста
    * TODO: Заменить на реальный HTTP запрос POST /api/writers/{writerId}/posts
    */
-  async createPost(writerId: string, title: string, content: string, attachments: File[] = []): Promise<string> {
-    const postId = Math.random().toString(36).substr(2, 9);
-    db.insertPost(postId, writerId, title, content);
-    
-    // Добавляем атачи к посту
-    for (const attachment of attachments) {
-      const attachmentUrl = await fileToUrl(attachment);
-      db.insertAttach(attachmentUrl, postId, attachment.type);
-    }
-    
-    return postId;
+  async createPost(writerId: string, title: string, content: string, attachments: File[] = [], subscriptionIds: string[]): Promise<string> {
+    await api.createPost({
+      creator: writerId,
+      title: title,
+      text: content,
+      available_subscriptions: subscriptionIds,
+    }, attachments);
+
+    return (await api.getCreatorPage(writerId)).posts[0].id;
   }
 
   /**
@@ -222,12 +237,11 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос GET /api/posts/{postId}/attachments
    */
   async getPostAttachmentIds(postId: string): Promise<{id: string, type: string}[]> {
-    const post = db.getPost(postId);
-    if (!post) return [];
-    
-    return post.attachment_ids.map((val, index) => {
-      return { id: val, type: post.attachment_types[index] }
-    });
+    const res = (await api.getPost(postId)).post.attachments.map(attach => (
+      {id: attach.id, type: attach.type}
+    ))
+    console.log(res)
+    return res;
   }
 
   /**
@@ -237,8 +251,11 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос GET /api/posts/{postId}/comments
    */
   async getPostCommentIds(postId: string): Promise<string[]> {
-    const comments = db.getComments(postId);
-    return comments.map(comment => comment?.comment_id || '').filter(id => id !== '');
+    const comments = (await api.getPost(postId)).comments
+    if (comments == undefined || comments.length == 0) {
+      return []
+    }
+    return comments.map(comment => comment.comment_id).filter(it => it != undefined);
   }
 
   /**
@@ -248,8 +265,19 @@ class WriterService {
    * @param content Новое содержимое поста
    * TODO: Заменить на реальный HTTP запрос PATCH /api/posts/{postId}
    */
-  async updatePost(postId: string, title: string, content: string): Promise<void> {
-    db.updatePostInfo(title, content, postId);
+  async updatePost(postId: string, title: string, content: string, attachments: File[] = [], subscriptionIds: string[], oldAttacmentsIds: {attachmentId: string, type: string}[]): Promise<void> {
+    await api.editPost(postId, {
+      id: postId,
+      title: title,
+      text: content,
+      available_subscriptions: subscriptionIds,
+    })
+    await oldAttacmentsIds.forEach( async attach => {
+      await api.deleteAttachmentFromPost(postId, attach.attachmentId, attach.type);
+    })
+    await attachments.forEach(async file => {
+      await api.addAttachmentToPost(postId, file);
+    })
   }
 
   /**
@@ -258,7 +286,7 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос DELETE /api/posts/{postId}
    */
   async deletePost(postId: string): Promise<void> {
-    db.deletePost(postId);
+    await api.deletePost(postId);
   }
 
   /**
@@ -280,13 +308,13 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос GET /api/posts/{postId}/author
    */
   async isPostAuthor(userId: string, postId: string): Promise<boolean> {
-    const post = db.getPost(postId);
-    if (!post) return false;
-    
-    const creator = db.isCreator(post.creator_id);
-    if (!creator) return false;
-    
-    return creator.user_id === userId;
+    const profile = await api.getProfile()
+    const post = await api.getPost(postId);
+    if (profile.is_creator && profile.creator_id == post.post.creator) {
+      return true;
+    } else {
+      return false;
+    }
   }
 
   /**
@@ -296,7 +324,7 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос POST /api/posts/{postId}/likes
    */
   async likePost(userId: string, postId: string): Promise<void> {
-    db.addLike(postId, userId);
+    await api.addLike(postId);
   }
 
   /**
@@ -306,7 +334,7 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос DELETE /api/posts/{postId}/likes
    */
   async unlikePost(userId: string, postId: string): Promise<void> {
-    db.removeLike(postId, userId);
+    api.removeLike(postId);
   }
 
   /**
@@ -317,7 +345,7 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос GET /api/posts/{postId}/likes/{userId}
    */
   async isPostLiked(userId: string, postId: string): Promise<boolean> {
-    return !!db.isLiked(postId, userId);
+    return (await api.getPost(postId)).post.is_liked
   }
 
   /**
@@ -329,9 +357,11 @@ class WriterService {
    * TODO: Заменить на реальный HTTP запрос POST /api/posts/{postId}/comments
    */
   async addComment(userId: string, postId: string, text: string): Promise<string> {
-    const commentId = Math.random().toString(36).substr(2, 9);
-    db.createComment(commentId, postId, userId, text);
-    return commentId;
+    const comment = await api.createComment({
+      post_id: postId,
+      text: text,
+    })
+    return comment.comment_id!;
   }
 
   /**
@@ -339,8 +369,8 @@ class WriterService {
    * @param commentId ID комментария
    * TODO: Заменить на реальный HTTP запрос DELETE /api/comments/{commentId}
    */
-  async deleteComment(commentId: string): Promise<void> {
-    db.deleteComment(commentId);
+  async deleteComment(commentId: string, postId: string): Promise<void> {
+    await api.deleteComment(commentId, postId)
   }
 
   /**
@@ -349,8 +379,8 @@ class WriterService {
    * @param commentId ID комментария
    * TODO: Заменить на реальный HTTP запрос POST /api/comments/{commentId}/likes
    */
-  async likeComment(userId: string, commentId: string): Promise<void> {
-    db.addLikeComment(commentId, userId);
+  async likeComment(userId: string, commentId: string, postId: string): Promise<void> {
+    await api.addLikeToComment(commentId, postId)
   }
 
   /**
@@ -359,8 +389,8 @@ class WriterService {
    * @param commentId ID комментария
    * TODO: Заменить на реальный HTTP запрос DELETE /api/comments/{commentId}/likes
    */
-  async unlikeComment(userId: string, commentId: string): Promise<void> {
-    db.deleteLikeComment(commentId);
+  async unlikeComment(userId: string, commentId: string, postId: string): Promise<void> {
+    await api.removeLikeFromComment(commentId)
   }
 
   /**
@@ -370,8 +400,178 @@ class WriterService {
    * @returns true, если пользователь поставил лайк комментарию, иначе false
    * TODO: Заменить на реальный HTTP запрос GET /api/comments/{commentId}/likes/{userId}
    */
-  async isCommentLiked(userId: string, commentId: string): Promise<boolean> {
-    return !!db.isLikedComment(commentId, userId);
+  async isCommentLiked(userId: string, commentId: string, postId: string): Promise<boolean> {
+    const comment = (await api.getPost(postId)).comments.find(post => post.comment_id == commentId)
+    return comment?.is_liked ?? false
+  }
+
+  /**
+   * Получить комментарии поста
+   * @param postId ID поста
+   * @returns Массив комментариев
+   * TODO: Заменить на реальный HTTP запрос GET /api/posts/{postId}/comments
+   */
+  async getPostComments(postId: string): Promise<Comment[]> {
+    const comments = (await api.getPost(postId)).comments
+    if (comments == undefined || comments.length == 0) {
+      return []
+    }
+    return comments.map(comment => ({
+      comment_id: comment.comment_id!,
+      user_id: comment.user_id!,
+      display_name: comment.username!,
+      profile_photo: comment.user_photo!,
+      post_id: comment.post_id!,
+      comment_text: comment.text!,
+      creation_date: new Date(comment.creation!),
+      likes_count: comment.likes_count!
+    } as Comment)).filter(it => it != null)
+  }
+
+  /**
+   * Редактировать комментарий
+   * @param commentId ID комментария
+   * @param text Новый текст комментария
+   * TODO: Заменить на реальный HTTP запрос PATCH /api/comments/{commentId}
+   */
+  async editComment(commentId: string, text: string): Promise<void> {
+    await api.editComment(commentId, text);
+  }
+
+  /**
+   * Проверить, является ли пользователь автором комментария
+   * @param userId ID пользователя
+   * @param commentId ID комментария
+   * @returns true, если пользователь является автором комментария, иначе false
+   * TODO: Заменить на реальный HTTP запрос GET /api/comments/{commentId}/author
+   */
+  async isCommentAuthor(userId: string, commentId: string, postId: string): Promise<boolean> {
+    const comment = (await api.getPost(postId)).comments.find(post => post.comment_id == commentId)
+    console.log(comment)
+    return comment?.is_owner ?? false
+  }
+
+  /**
+   * Получить уровни подписки автора
+   * @param writerId ID автора
+   * @returns Массив уровней подписки
+   * TODO: Заменить на реальный HTTP запрос GET /api/writers/{writerId}/subscriptions
+   */
+  async getCreatorSubscriptions(writerId: string): Promise<{
+    id: string;
+    title: string;
+    price: string;
+    description: string;
+    is_avalible: boolean;
+  }[]> {
+    const writer = await api.getCreatorPage(writerId)
+    return writer.subscriptions ? writer.subscriptions.map(sub => ({
+      id: sub.id ?? '',
+      title: sub.title,
+      price: `${sub.month_cost}`,
+      description: sub.description ?? '',
+      is_avalible: true
+    })) : [];
+  }
+
+  /**
+   * Создать новый уровень подписки
+   * @param writerId ID автора
+   * @param title Название уровня подписки
+   * @param price Цена уровня подписки
+   * @param description Описание уровня подписки
+   * @returns ID созданного уровня подписки
+   * TODO: Заменить на реальный HTTP запрос POST /api/writers/{writerId}/subscriptions
+   */
+  async createSubscription(
+    writerId: string,
+    title: string,
+    price: number,
+    description: string
+  ): Promise<string> {
+    return (await api.createSubscription({
+      title: title,
+      month_cost: price,
+      description: description,
+    })).id!;
+  }
+
+  /**
+   * Обновить уровень подписки
+   * @param subscriptionId ID уровня подписки
+   * @param title Новое название уровня подписки
+   * @param price Новая цена уровня подписки
+   * @param description Новое описание уровня подписки
+   * TODO: Заменить на реальный HTTP запрос PATCH /api/subscriptions/{subscriptionId}
+   */
+  async updateSubscription(
+    subscriptionId: string,
+    title: string,
+    price: number,
+    description: string,
+    creatorId: string
+  ): Promise<void> {
+    await api.editSubscription(subscriptionId, {
+      creator: creatorId,
+      title: title,
+      month_cost: price,
+      description: description,
+    });
+  }
+
+  /**
+   * Удалить уровень подписки
+   * @param writerId ID автора
+   * @param subscriptionId ID уровня подписки
+   * TODO: Заменить на реальный HTTP запрос DELETE /api/writers/{writerId}/subscriptions/{subscriptionId}
+   */
+  async deleteSubscription(writerId: string, subscriptionId: string): Promise<void> {
+    await api.deleteSubscription(subscriptionId);
+  }
+
+  /**
+   * Подписаться на уровень подписки
+   * @param userId ID пользователя
+   * @param subscriptionId ID уровня подписки
+   * @param months Количество месяцев подписки
+   * TODO: Заменить на реальный HTTP запрос POST /api/subscriptions/{subscriptionId}/subscribe
+   */
+  async subscribeToLevel(
+    userId: string,
+    subscriptionId: string,
+    months: number,
+    creatorId: string,
+    price: number
+  ): Promise<void> {
+    // await api.addPaymentInfo(subscriptionId, {
+    //   creator_id: creatorId,
+    //   month_count: months
+    // })
+    await api.subscribe(subscriptionId, {
+      creator_id: creatorId,
+      month_count: months,
+      money: price * months
+    })
+  }
+
+  async getUserSubLevels(userId: string): Promise<({
+    subscription_id: string;
+    creator_id: string;
+    name: string;
+    profile_photo: string | undefined;
+    month_cost: number;
+    title: string;
+    description: string | undefined;
+} | null)[]> {
+    return (await api.getSubscriptions()).map(sub => ({
+      subscription_id: sub.id!,
+      creator_id: sub.creator!,
+      name: sub.creator_name!,
+      profile_photo: sub.creator_photo,
+      month_cost: sub.month_cost,
+      title: sub.title,
+      description: sub.description
+    }))
   }
 }
 

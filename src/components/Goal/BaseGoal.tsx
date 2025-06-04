@@ -1,8 +1,10 @@
 import { Box, LinearProgress, Typography } from "@mui/material";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 interface Goal {
-    current: number; 
-    target: number;
+    aim: string;
+    moneyGot: number;
+    moneyNeeded: number;
 }
 
 interface GoalProps {
@@ -11,16 +13,21 @@ interface GoalProps {
 }
 
 export const BaseGoal: React.FC<GoalProps> = ({ goal, isMobile }) => {
-    const progress = (goal.current / goal.target) * 100;
+    const { lang } = useLanguage();
+    let progress = goal.moneyGot == 0 && goal.moneyNeeded == 0 ? 0 : (goal.moneyGot / goal.moneyNeeded) * 100;
+    if (goal.moneyNeeded == 0 && goal.moneyGot != 0) {
+        progress = 100
+    }
 
     return (
         <Box sx={{ mt: isMobile ? 2 : 4, mb: isMobile ? 2 : 4 }}>
+            <Typography variant='h6'>{lang.GOAL}</Typography>
             <Typography variant="subtitle1" gutterBottom>
-                Цель
+                {goal.aim}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <Typography variant="body2" sx={{ flexGrow: 1 }}>
-                    {goal.current} из {goal.target}
+                    {goal.moneyGot} {lang.GOAL_OF} {goal.moneyNeeded}
                 </Typography>
                 <Typography variant="body2">
                     {progress.toFixed(0)}%
@@ -28,7 +35,7 @@ export const BaseGoal: React.FC<GoalProps> = ({ goal, isMobile }) => {
             </Box>
             <LinearProgress
                 variant="determinate"
-                value={progress}
+                value={progress > 100 ? 100 : progress}
                 sx={{
                     height: 8,
                     borderRadius: 4,

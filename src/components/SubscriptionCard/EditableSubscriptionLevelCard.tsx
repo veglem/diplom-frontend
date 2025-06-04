@@ -3,6 +3,7 @@ import { Box, IconButton, Modal, TextField, Typography, Button } from "@mui/mate
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import SubscriptionLevelCard, { SubscriptionLevel } from './SubscriptionLevelCard';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface EditableSubscriptionLevelCardProps {
     level: SubscriptionLevel;
@@ -12,6 +13,7 @@ interface EditableSubscriptionLevelCardProps {
 }
 
 const EditableSubscriptionLevelCard: React.FC<EditableSubscriptionLevelCardProps> = ({ level, isMobile, onDelete, onUpdate }) => {
+    const { lang } = useLanguage();
     const [isHovered, setIsHovered] = useState(false);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
@@ -75,17 +77,17 @@ const EditableSubscriptionLevelCard: React.FC<EditableSubscriptionLevelCardProps
                     p: 4,
                 }}>
                     <Typography id="delete-modal-title" variant="h6" component="h2">
-                        Подтверждение удаления
+                        {lang.DELETE_CONFIRMATION}
                     </Typography>
                     <Typography id="delete-modal-description" sx={{ mt: 2 }}>
-                        Вы уверены, что хотите удалить уровень подписки "{level.title}"?
+                        {lang.DELETE_SUBSCRIPTION_CONFIRMATION} "{level.title}"?
                     </Typography>
                     <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-around' }}>
                         <Button onClick={handleCloseDeleteModal} variant="contained" color="primary">
-                            Отмена
+                            {lang.CANCEL}
                         </Button>
                         <Button onClick={handleDelete} variant="contained" color="error">
-                            Удалить
+                            {lang.DELETE}
                         </Button>
                     </Box>
                 </Box>
@@ -110,14 +112,14 @@ const EditableSubscriptionLevelCard: React.FC<EditableSubscriptionLevelCardProps
                     p: 4,
                 }}>
                     <Typography id="edit-modal-title" variant="h6" component="h2">
-                        Редактировать уровень подписки
+                        {lang.EDIT_SUBSCRIPTION_LEVEL}
                     </Typography>
                     <TextField
                         margin="normal"
                         required
                         fullWidth
                         id="title"
-                        label="Название"
+                        label={lang.TITLE}
                         name="title"
                         value={editedLevel.title}
                         onChange={handleInputChange}
@@ -127,7 +129,7 @@ const EditableSubscriptionLevelCard: React.FC<EditableSubscriptionLevelCardProps
                         required
                         fullWidth
                         id="description"
-                        label="Описание"
+                        label={lang.DESCRIPTION}
                         name="description"
                         value={editedLevel.description}
                         onChange={handleInputChange}
@@ -138,17 +140,17 @@ const EditableSubscriptionLevelCard: React.FC<EditableSubscriptionLevelCardProps
                         required
                         fullWidth
                         id="price"
-                        label="Цена"
+                        label={lang.PRICE}
                         name="price"
                         value={editedLevel.price}
                         onChange={handleInputChange}
                     />
                     <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-around'}}>
                         <Button onClick={handleCloseEditModal} variant="contained" color="primary">
-                            Отмена
+                            {lang.CANCEL}
                         </Button>
                         <Button onClick={handleUpdate} variant="contained" color="success">
-                            Сохранить
+                            {lang.SAVE}
                         </Button>
                     </Box>
                 </Box>

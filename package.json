@@ -21,6 +21,8 @@
     "@tiptap/react": "^2.12.0",
     "@tiptap/starter-kit": "^2.12.0",
     "@types/react-router-dom": "^5.3.3",
+    "date-fns": "^4.1.0",
+    "node-html-parser": "^7.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-image-crop": "^11.0.10",

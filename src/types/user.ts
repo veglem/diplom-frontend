@@ -21,10 +21,13 @@ export interface UserData {
 }
 
 export interface Writer extends UserData {
-  isAuthor: true;
+  isAuthor: boolean;
   bio: string;
-  goal: { current: number; target: number; };
+  goal: { aim?: string, current: number; target: number; };
   subscriptions: number;
+  profilePhoto?: string;
+  coverPhoto?: string;
+  isMyPage?: boolean;
 }
 
 export interface Post {
@@ -34,4 +37,7 @@ export interface Post {
   authorId: string;
   attachment_ids?: string[];
   attachment_types?: string[];
+  likes_count?: number;
+  is_avalible: boolean;
+  subscriptions: string[];
 }

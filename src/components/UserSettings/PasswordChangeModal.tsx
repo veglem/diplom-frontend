@@ -16,6 +16,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface PasswordChangeModalProps {
   open: boolean;
@@ -48,6 +49,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
 
   // Состояние загрузки
   const [isLoading, setIsLoading] = useState(false);
+  const {lang} = useLanguage();
 
   // Обработчик переключения видимости пароля
   const handleTogglePasswordVisibility = (field: 'old' | 'new' | 'confirm') => {
@@ -83,7 +85,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
 
     // Проверка старого пароля
     if (!oldPassword) {
-      setOldPasswordError('Введите текущий пароль');
+      setOldPasswordError(lang.ENTER_CURRENT_PASSWORD);
       isValid = false;
     } else {
       setOldPasswordError('');
@@ -91,10 +93,10 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
 
     // Проверка нового пароля
     if (!newPassword) {
-      setNewPasswordError('Введите новый пароль');
+      setNewPasswordError(lang.ENTER_NEW_PASSWORD);
       isValid = false;
     } else if (newPassword.length < 8) {
-      setNewPasswordError('Пароль должен содержать не менее 8 символов');
+      setNewPasswordError(lang.PASSWORD_MIN_LENGTH);
       isValid = false;
     } else {
       setNewPasswordError('');
@@ -102,10 +104,10 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
 
     // Проверка подтверждения пароля
     if (!confirmPassword) {
-      setConfirmPasswordError('Подтвердите новый пароль');
+      setConfirmPasswordError(lang.CONFIRM_NEW_PASSWORD);
       isValid = false;
     } else if (confirmPassword !== newPassword) {
-      setConfirmPasswordError('Пароли не совпадают');
+      setConfirmPasswordError(lang.PASSWORDS_DONT_MATCH);
       isValid = false;
     } else {
       setConfirmPasswordError('');
@@ -129,9 +131,9 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
       // Обработка ошибок от API
       if (error instanceof Error) {
         if (error.message.includes('current password')) {
-          setOldPasswordError('Неверный текущий пароль');
+          setOldPasswordError(lang.INCORRECT_CURRENT_PASSWORD);
         } else {
-          setNewPasswordError('Ошибка при изменении пароля');
+          setNewPasswordError(lang.PASSWORD_CHANGE_ERROR);
         }
       }
     } finally {
@@ -154,7 +156,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
         py: isSmallScreen ? 1.5 : 2,
         fontSize: isSmallScreen ? '1.1rem' : '1.25rem'
       }}>
-        Изменение пароля
+        {lang.PASSWORD_CHANGE}
         <IconButton
           aria-label="close"
           onClick={handleClose}
@@ -177,7 +179,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
             margin="normal"
             required
             fullWidth
-            label="Текущий пароль"
+            label={lang.CURRENT_PASSWORD}
             type={showOldPassword ? 'text' : 'password'}
             value={oldPassword}
             onChange={(e) => setOldPassword(e.target.value)}
@@ -210,7 +212,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
             margin="normal"
             required
             fullWidth
-            label="Новый пароль"
+            label={lang.NEW_PASSWORD}
             type={showNewPassword ? 'text' : 'password'}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -243,7 +245,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
             margin="normal"
             required
             fullWidth
-            label="Подтвердите новый пароль"
+            label={lang.CONFIRM_NEW_PASSWORD}
             type={showConfirmPassword ? 'text' : 'password'}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -284,7 +286,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
             py: isSmallScreen ? 0.5 : 'auto'
           }}
         >
-          Отмена
+          {lang.CANCEL}
         </Button>
         <Button
           onClick={handleSubmit}
@@ -297,7 +299,7 @@ const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({
             py: isSmallScreen ? 0.5 : 'auto'
           }}
         >
-          {isLoading ? 'Сохранение...' : 'Сохранить'}
+          {isLoading ? lang.SAVING : lang.SAVE}
         </Button>
       </DialogActions>
     </Dialog>

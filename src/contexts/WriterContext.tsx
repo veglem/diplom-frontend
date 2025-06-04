@@ -3,6 +3,17 @@ import { useAuth } from './AuthContext';
 import { writerService } from '../services/writerService';
 import { Writer, Post } from '../types/user';
 import { useNotification } from './NotificationContext';
+import { translationService } from '../utils/translate';
+import { useLanguage } from './LanguageContext';
+
+// Интерфейс для уровня подписки
+export interface SubscriptionLevel {
+  id: string;
+  title: string;
+  price: string;
+  description: string;
+  is_avalible: boolean
+}
 
 interface WriterContextType {
   writer: Writer | null;
@@ -11,14 +22,22 @@ interface WriterContextType {
   isLoading: boolean;
   isCurrentUserWriter: boolean;
   isFollowing: boolean;
+  subscriptionLevels: SubscriptionLevel[];
+  translating: boolean | undefined;
   updateWriterProfile: (data: { name?: string; description?: string }) => Promise<void>;
   updateWriterAvatar: (file: File) => Promise<void>;
   updateWriterCover: (file: File) => Promise<void>;
   updateWriterGoal: (aim: string, moneyNeeded: number) => Promise<void>;
-  createPost: (title: string, content: string, attachments?: File[]) => Promise<string>;
+  createPost: (title: string, content: string, attachments?: File[], subscriptionIds?: string[]) => Promise<string>;
   refreshPosts: () => Promise<void>;
   followWriter: () => Promise<void>;
   unfollowWriter: () => Promise<void>;
+  createSubscriptionLevel: (title: string, price: number, description: string) => Promise<void>;
+  updateSubscriptionLevel: (id: string, title: string, price: number, description: string) => Promise<void>;
+  deleteSubscriptionLevel: (id: string) => Promise<void>;
+  subscribeToLevel: (subscriptionId: string, months: number) => Promise<void>;
+  refreshSubscriptionLevels: () => Promise<void>;
+  setTranslating: (translating: boolean | undefined) => void;
 }
 
 interface WriterProviderProps {
@@ -37,6 +56,9 @@ export const WriterProvider: React.FC<WriterProviderProps> = ({ writerId, childr
   const [isLoading, setIsLoading] = useState(true);
   const [isCurrentUserWriter, setIsCurrentUserWriter] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [subscriptionLevels, setSubscriptionLevels] = useState<SubscriptionLevel[]>([]);
+  const [translating, setTranslating] = useState<boolean | undefined>(undefined);
+  const {langCode} = useLanguage();
 
   // Загрузка данных писателя и его постов
   useEffect(() => {
@@ -46,10 +68,31 @@ export const WriterProvider: React.FC<WriterProviderProps> = ({ writerId, childr
         // Загружаем профиль писателя
         const writerData = await writerService.getWriterProfile(writerId);
         if (writerData) {
-          setWriter(writerData);
+          if (writerData.isMyPage || translating !== true) {
+            setWriter(writerData);
+          } else {
+            if (writerData.goal.aim != undefined && writer?.goal.aim?.trim().length != 0) {
+              const trunslationRes = await translationService.autoTranslate(langCode, writerData.bio, writerData.goal.aim) 
+              setWriter({
+                ...writerData,
+                bio: trunslationRes[0],
+                goal: {
+                  ...writerData.goal,
+                  aim: trunslationRes[1]
+                }
+              })
+            } else {
+              const trunslationRes = await translationService.autoTranslate(langCode, writerData.bio) 
+              setWriter({
+                ...writerData,
+                bio: trunslationRes[0]
+              })
+            }
+          }
+          
           
           // Проверяем, является ли текущий пользователь этим писателем
-          setIsCurrentUserWriter(user?.id === writerData.id);
+          await setIsCurrentUserWriter(writerData.isMyPage ?? false);
           
           // Загружаем ID постов писателя
           const postIds = await writerService.getWriterPostIds(writerId);
@@ -58,6 +101,9 @@ export const WriterProvider: React.FC<WriterProviderProps> = ({ writerId, childr
           // Загружаем количество подписчиков
           const followersCount = await writerService.getFollowersCount(writerId);
           setFollowersCount(followersCount);
+          
+          // Загружаем уровни подписки
+          await refreshSubscriptionLevels();
           
           // Проверяем, подписан ли текущий пользователь на писателя
           if (user?.id) {
@@ -76,7 +122,7 @@ export const WriterProvider: React.FC<WriterProviderProps> = ({ writerId, childr
     };
 
     loadWriterData();
-  }, [writerId, user?.id, showNotification]);
+  }, [writerId, user?.id, showNotification, translating]);
 
   // Обновление профиля писателя
   const updateWriterProfile = async (data: { name?: string; description?: string }) => {
@@ -86,8 +132,12 @@ export const WriterProvider: React.FC<WriterProviderProps> = ({ writerId, childr
     }
 
     try {
-      await writerService.updateWriterProfile(writerId, data);
-      
+      if (writer) {
+        await writerService.updateWriterProfile(writerId, {
+         name: data.name ?? writer?.username,
+         description: data.description ?? writer?.bio
+      });
+      }
       // Обновляем локальные данные
       if (writer) {
         setWriter({
@@ -118,7 +168,7 @@ export const WriterProvider: React.FC<WriterProviderProps> = ({ writerId, childr
       if (writer) {
         setWriter({
           ...writer,
-          avatar: avatarUrl
+          profilePhoto: avatarUrl
         });
       }
       
@@ -137,7 +187,13 @@ export const WriterProvider: React.FC<WriterProviderProps> = ({ writerId, childr
     }
 
     try {
-      await writerService.updateWriterCover(writerId, file);
+      const url = await writerService.updateWriterCover(writerId, file);
+      if (writer) {
+        setWriter({
+        ...writer,
+        coverPhoto: url
+      })
+      }
       showNotification('Обложка профиля успешно обновлена', 'success');
     } catch (error) {
       console.error('Ошибка при обновлении обложки профиля:', error);
@@ -161,6 +217,7 @@ export const WriterProvider: React.FC<WriterProviderProps> = ({ writerId, childr
           ...writer,
           goal: {
             ...writer.goal,
+            aim: aim == '' ? undefined : aim,
             target: moneyNeeded
           }
         });
@@ -174,14 +231,14 @@ export const WriterProvider: React.FC<WriterProviderProps> = ({ writerId, childr
   };
 
   // Создание нового поста
-  const createPost = async (title: string, content: string, attachments: File[] = []): Promise<string> => {
+  const createPost = async (title: string, content: string, attachments: File[] = [], subscriptionIds: string[] = []): Promise<string> => {
     if (!isCurrentUserWriter) {
       showNotification('У вас нет прав для создания постов от имени этого писателя', 'error');
       return '';
     }
 
     try {
-      const postId = await writerService.createPost(writerId, title, content, attachments);
+      const postId = await writerService.createPost(writerId, title, content, attachments, subscriptionIds);
       
       // Обновляем список постов
       await refreshPosts();
@@ -247,6 +304,116 @@ export const WriterProvider: React.FC<WriterProviderProps> = ({ writerId, childr
     }
   };
 
+  // Обновление списка уровней подписки
+  const refreshSubscriptionLevels = async () => {
+    try {
+      const levels = await writerService.getCreatorSubscriptions(writerId);
+      const isMyPage = (await writerService.getWriterProfile(writerId))?.isMyPage
+
+      if (isMyPage) {
+        console.log("MY PAGE")
+        setSubscriptionLevels(levels);
+      } else {
+        console.log("NOT MY PAGE")
+        const translationRes = await translationService.autoTranslate(langCode, ...levels.flatMap(level => {
+          if (level.description == '') {
+            return [level.title, "Описания нет"]
+          } else {
+            return [level.title, level.description]
+          }
+        }))
+        setSubscriptionLevels(
+          levels.map((level, index) => ({
+            ...level,
+            title: translationRes[2 * index],
+            description: translationRes[2 * index + 1]
+          }))
+        )
+      }
+      
+
+      
+    } catch (error) {
+      console.error('Ошибка при загрузке уровней подписки:', error);
+      showNotification('Ошибка при загрузке уровней подписки', 'error');
+    }
+  };
+
+  // Создание нового уровня подписки
+  const createSubscriptionLevel = async (title: string, price: number, description: string) => {
+    if (!isCurrentUserWriter) {
+      showNotification('У вас нет прав для создания уровней подписки', 'error');
+      return;
+    }
+
+    try {
+      await writerService.createSubscription(writerId, title, price, description);
+      await refreshSubscriptionLevels();
+      showNotification('Уровень подписки успешно создан', 'success');
+    } catch (error) {
+      console.error('Ошибка при создании уровня подписки:', error);
+      showNotification('Ошибка при создании уровня подписки', 'error');
+    }
+  };
+
+  // Обновление уровня подписки
+  const updateSubscriptionLevel = async (id: string, title: string, price: number, description: string) => {
+    if (!isCurrentUserWriter) {
+      showNotification('У вас нет прав для редактирования уровней подписки', 'error');
+      return;
+    }
+
+    try {
+      await writerService.updateSubscription(id, title, price, description, writerId);
+      await refreshSubscriptionLevels();
+      showNotification('Уровень подписки успешно обновлен', 'success');
+    } catch (error) {
+      console.error('Ошибка при обновлении уровня подписки:', error);
+      showNotification('Ошибка при обновлении уровня подписки', 'error');
+    }
+  };
+
+  // Удаление уровня подписки
+  const deleteSubscriptionLevel = async (id: string) => {
+    if (!isCurrentUserWriter) {
+      showNotification('У вас нет прав для удаления уровней подписки', 'error');
+      return;
+    }
+
+    try {
+      await writerService.deleteSubscription(writerId, id);
+      await refreshSubscriptionLevels();
+      showNotification('Уровень подписки успешно удален', 'success');
+    } catch (error) {
+      console.error('Ошибка при удалении уровня подписки:', error);
+      showNotification('Ошибка при удалении уровня подписки', 'error');
+    }
+  };
+
+  // Подписка на уровень
+  const subscribeToLevel = async (subscriptionId: string, months: number) => {
+    if (!user?.id) {
+      showNotification('Вы должны быть авторизованы, чтобы подписаться', 'error');
+      return;
+    }
+
+    if (isCurrentUserWriter) {
+      showNotification('Вы не можете подписаться на свой собственный контент', 'error');
+      return;
+    }
+
+    try {
+      const price = (await writerService.getCreatorSubscriptions(writerId)).find(sub => sub.id == subscriptionId)?.price
+      await writerService.subscribeToLevel(user.id, subscriptionId, months, writerId, price);
+      refreshSubscriptionLevels();
+      refreshPosts();
+      showNotification('Вы успешно подписались', 'success');
+    } catch (error) {
+      console.error('Ошибка при подписке:', error);
+      showNotification('Ошибка при подписке', 'error');
+    }
+  };
+
   return (
     <WriterContext.Provider
       value={{
@@ -256,6 +423,8 @@ export const WriterProvider: React.FC<WriterProviderProps> = ({ writerId, childr
         isLoading,
         isCurrentUserWriter,
         isFollowing,
+        subscriptionLevels,
+        translating,
         updateWriterProfile,
         updateWriterAvatar,
         updateWriterCover,
@@ -263,7 +432,13 @@ export const WriterProvider: React.FC<WriterProviderProps> = ({ writerId, childr
         createPost,
         refreshPosts,
         followWriter,
-        unfollowWriter
+        unfollowWriter,
+        createSubscriptionLevel,
+        updateSubscriptionLevel,
+        deleteSubscriptionLevel,
+        subscribeToLevel,
+        refreshSubscriptionLevels,
+        setTranslating
       }}
     >
       {children}

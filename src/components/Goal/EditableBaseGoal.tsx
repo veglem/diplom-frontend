@@ -3,20 +3,23 @@ import { Box, IconButton, Modal, TextField, Typography, Button } from "@mui/mate
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from "@mui/icons-material/Delete"
 import { BaseGoal } from './BaseGoal';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface Goal {
-    current: number;
-    target: number;
+    aim: string;
+    moneyGot: number;
+    moneyNeeded: number;
 }
 
 interface EditableGoalProps {
     goal: Goal;
     isMobile: boolean;
-    onUpdate: (updatedGoal: Goal) => void;
+    onUpdate: (aim: string, moneyNeeded: number) => void;
     onDelete: () => void;
 }
 
 const EditableBaseGoal: React.FC<EditableGoalProps> = ({ goal, isMobile, onUpdate, onDelete }) => {
+    const { lang } = useLanguage();
     const [isHovered, setIsHovered] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -28,7 +31,7 @@ const EditableBaseGoal: React.FC<EditableGoalProps> = ({ goal, isMobile, onUpdat
     const handleCloseDeleteModal = () => setDeleteModalOpen(false);
 
     const handleUpdate = () => {
-        onUpdate(editedGoal);
+        onUpdate(editedGoal.aim, editedGoal.moneyNeeded);
         handleCloseEditModal();
     };
 
@@ -38,8 +41,13 @@ const EditableBaseGoal: React.FC<EditableGoalProps> = ({ goal, isMobile, onUpdat
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setEditedGoal(prev => ({ ...prev, [name]: Number(value) }));
+        const { value } = e.target;
+        setEditedGoal(prev => ({ ...prev, moneyNeeded: Number(value) }));
+    };
+
+    const handleInputAimChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { value } = e.target;
+        setEditedGoal(prev => ({ ...prev, aim: value }));
     };
 
     return (
@@ -79,36 +87,36 @@ const EditableBaseGoal: React.FC<EditableGoalProps> = ({ goal, isMobile, onUpdat
                     p: 4,
                 }}>
                     <Typography id="edit-modal-title" variant="h6" component="h2">
-                        Редактировать цель
+                        {lang.EDIT_GOAL}
                     </Typography>
                     <TextField
                         margin="normal"
                         required
                         fullWidth
-                        id="current"
-                        label="Текущее значение"
-                        name="current"
-                        value={editedGoal.current}
-                        onChange={handleInputChange}
-                        type="number"
+                        id="aim"
+                        label={lang.GOAL}
+                        name="aim"
+                        value={editedGoal.aim}
+                        onChange={handleInputAimChange}
+                        type='text'
                     />
                     <TextField
                         margin="normal"
                         required
                         fullWidth
-                        id="target"
-                        label="Целевое значение"
-                        name="target"
-                        value={editedGoal.target}
+                        id="moneyNeeded"
+                        label={lang.TARGET_VALUE}
+                        name="moneyNeeded"
+                        value={editedGoal.moneyNeeded}
                         onChange={handleInputChange}
                         type="number"
                     />
                     <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-around' }}>
                         <Button onClick={handleCloseEditModal} variant="contained" color="primary">
-                            Отмена
+                            {lang.CANCEL}
                         </Button>
                         <Button onClick={handleUpdate} variant="contained" color="success">
-                            Сохранить
+                            {lang.SAVE}
                         </Button>
                     </Box>
                 </Box>
@@ -133,17 +141,17 @@ const EditableBaseGoal: React.FC<EditableGoalProps> = ({ goal, isMobile, onUpdat
                     p: 4,
                 }}>
                     <Typography id="delete-modal-title" variant="h6" component="h2">
-                        Подтверждение удаления
+                        {lang.DELETE_CONFIRMATION}
                     </Typography>
                     <Typography id="delete-modal-description" sx={{ mt: 2 }}>
-                        Вы уверены, что хотите удалить цель?
+                        {lang.DELETE_GOAL_CONFIRMATION}
                     </Typography>
                     <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-around' }}>
                         <Button onClick={handleCloseDeleteModal} variant="contained" color="primary">
-                            Отмена
+                            {lang.CANCEL}
                         </Button>
                         <Button onClick={handleDelete} variant="contained" color="error">
-                            Удалить
+                            {lang.DELETE}
                         </Button>
                     </Box>
                 </Box>

@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Box, IconButton, useTheme, useMediaQuery, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface ImageUploadModalProps {
     open: boolean;
@@ -14,6 +15,7 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
     onClose,
     onImageSelect
 }) => {
+    const { lang } = useLanguage();
     const theme = useTheme();
     const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -50,7 +52,7 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
             onImageSelect(file);
         } else {
             // Можно добавить обработку ошибки, если файл не является изображением
-            console.error('Выбранный файл не является изображением');
+            console.error(lang.FILE_NOT_IMAGE);
         }
     };
 
@@ -66,7 +68,7 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
                 py: isSmallScreen ? 1.5 : 2,
                 fontSize: isSmallScreen ? '1.1rem' : '1.25rem'
             }}>
-                Загрузка изображения
+                {lang.IMAGE_UPLOAD}
                 <IconButton
                     aria-label="close"
                     onClick={onClose}
@@ -119,10 +121,10 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
                     />
                     <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
                     <Typography variant="h6" component="div" gutterBottom>
-                        Перетащите изображение сюда
+                        {lang.DRAG_IMAGE_HERE}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                        или нажмите для выбора файла
+                        {lang.OR_CLICK_TO_SELECT}
                     </Typography>
                 </Box>
             </DialogContent>
@@ -133,7 +135,7 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
                     color="inherit"
                     size={isSmallScreen ? "small" : "medium"}
                 >
-                    Отмена
+                    {lang.CANCEL}
                 </Button>
             </DialogActions>
         </Dialog>

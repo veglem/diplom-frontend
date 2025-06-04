@@ -18,7 +18,9 @@ import HomeIcon from '@mui/icons-material/Home';
 import InfoIcon from '@mui/icons-material/Favorite';
 import ContactsIcon from '@mui/icons-material/Settings';
 import BaseLayout from './BaseLayout';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { useLocation, useNavigate } from 'react-router';
+import { useLanguage } from '../contexts/LanguageContext';
 
 // Интерфейс для пропсов макета мобильных устройств
 interface MobileLayoutProps {
@@ -56,7 +58,8 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
   children, 
 }) => {
   let navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, selfAuthorId } = useAuth();
+  const {lang} = useLanguage();
 
   const handleLogout = () => {
     navigate('/settings/profile');
@@ -124,9 +127,9 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
           boxShadow: 3,
         }}
       >
-        <BottomNavigationAction value="/" label="Главная" icon={<HomeIcon />} />
-        <BottomNavigationAction value="/subscribtions" label="Подписки" icon={<InfoIcon />} />
-        <BottomNavigationAction value="/settings/profile" label="Настройки" icon={<ContactsIcon />} />
+        <BottomNavigationAction value="/" label={lang.MAIN_PAGE} icon={<HomeIcon />} />
+        <BottomNavigationAction value="/subscribtions" label={lang.SUBSCRIPTIONS} icon={<InfoIcon />} />
+        {selfAuthorId != null && (<BottomNavigationAction value={`/author/${selfAuthorId}`} label={lang.MY_PAGE} icon={<AccountCircleIcon />} />)}
       </BottomNavigation>
     </BaseLayout>
   );

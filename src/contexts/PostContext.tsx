@@ -4,26 +4,45 @@ import { writerService } from '../services/writerService';
 import { Post } from '../types/user';
 import { useNotification } from './NotificationContext';
 import { WriterContext } from './WriterContext';
+import { useLanguage } from './LanguageContext';
+import { htmlTranslator } from '../utils/htmlTranslator';
+import { translationService } from '../utils/translate';
+
+
+// Интерфейс для комментария
+export interface Comment {
+  comment_id: string;
+  user_id: string;
+  display_name: string;
+  profile_photo?: string;
+  post_id: string;
+  comment_text: string;
+  creation_date: Date;
+  likes_count: number;
+}
 
 interface PostContextType {
   post: Post | null;
   attachmentIds: {id: string, type: string}[];
   commentIds: string[];
+  comments: Comment[];
   isLoading: boolean;
   isCurrentUserAuthor: boolean;
   isPostAvailable: boolean;
   isLiked: boolean;
-  updatePost: (title: string, content: string) => Promise<void>;
+  updatePost: (title: string, content: string, attachments: File[], subscriptionsIds: string[]) => Promise<void>;
   deletePost: () => Promise<void>;
   refreshAttachments: () => Promise<void>;
   refreshComments: () => Promise<void>;
   likePost: () => Promise<void>;
   unlikePost: () => Promise<void>;
   addComment: (text: string) => Promise<string>;
+  editComment: (commentId: string, text: string) => Promise<void>;
   deleteComment: (commentId: string) => Promise<void>;
   likeComment: (commentId: string) => Promise<void>;
   unlikeComment: (commentId: string) => Promise<void>;
   isCommentLiked: (commentId: string) => Promise<boolean>;
+  isCommentAuthor: (commentId: string) => Promise<boolean>;
 }
 
 interface PostProviderProps {
@@ -41,10 +60,16 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
   const [post, setPost] = useState<Post | null>(null);
   const [attachmentIds, setAttachmentIds] = useState<{id: string, type: string}[]>([]);
   const [commentIds, setCommentIds] = useState<string[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCurrentUserAuthor, setIsCurrentUserAuthor] = useState(false);
   const [isPostAvailable, setIsPostAvailable] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+  const {langCode} = useLanguage();
+
+  const translating = writerContext?.translating;
+
+  console.log(post)
 
   // Загрузка данных поста
   useEffect(() => {
@@ -53,7 +78,6 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
       try {
         // Получаем данные поста
         const postData = await writerService.getPost(postId);
-        
         if (postData) {
           // Проверяем, является ли текущий пользователь автором поста
           if (user?.id) {
@@ -79,7 +103,17 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
               
               // Если пост доступен, загружаем полные данные и атачи/комментарии
               if (available) {
-                setPost(postData);
+                if (writerContext?.translating == true) {
+                  const translatedContent = await htmlTranslator.translateHtml(postData.content, langCode)
+                  const translatedTitle = await translationService.autoTranslate(langCode, postData.title)
+                  setPost({
+                    ...postData,
+                    title: translatedTitle[0],
+                    content: translatedContent
+                  });
+                } else {
+                  setPost(postData)
+                }
                 await refreshAttachments();
                 await refreshComments();
               } else {
@@ -88,7 +122,10 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
                   id: postData.id,
                   title: postData.title,
                   content: '', // Скрываем содержимое
-                  authorId: postData.authorId
+                  authorId: postData.authorId,
+                  likes_count: postData.likes_count,
+                  is_avalible: postData.is_avalible,
+                  subscriptions: postData.subscriptions
                 });
               }
             }
@@ -99,7 +136,10 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
               id: postData.id,
               title: postData.title,
               content: '', // Скрываем содержимое
-              authorId: postData.authorId
+              authorId: postData.authorId,
+              likes_count: postData.likes_count,
+              is_avalible: postData.is_avalible,
+              subscriptions: postData.subscriptions
             });
           }
         } else {
@@ -114,7 +154,7 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
     };
 
     loadPostData();
-  }, [postId, user?.id, showNotification]);
+  }, [postId, user?.id, showNotification, translating]);
 
   // Обновление списка атачей
   const refreshAttachments = async () => {
@@ -131,20 +171,38 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
     try {
       const commentIds = await writerService.getPostCommentIds(postId);
       setCommentIds(commentIds);
+      
+      // Получаем полную информацию о комментариях
+      const commentsData = await writerService.getPostComments(postId);
+      let commentsTranslations: string[];
+      if (writerContext?.translating == true) {
+        commentsTranslations = await translationService.autoTranslate(langCode, ...commentsData.map(val => (val.comment_text)))
+      } else {
+        commentsTranslations = commentsData.map(val => (val.comment_text))
+      }
+      
+      setComments(commentsData.map((comment, index) => {
+        if (user?.username == comment.display_name) {
+          return comment;
+        }
+        return ({
+        ...comment,
+        comment_text: commentsTranslations[index]
+      })}) as Comment[]);
     } catch (error) {
       console.error('Ошибка при загрузке комментариев:', error);
     }
   };
 
   // Обновление поста
-  const updatePost = async (title: string, content: string) => {
+  const updatePost = async (title: string, content: string, attachments: File[], subscriptionsIds: string[]) => {
     if (!isCurrentUserAuthor) {
       showNotification('У вас нет прав для редактирования этого поста', 'error');
       return;
     }
 
     try {
-      await writerService.updatePost(postId, title, content);
+      await writerService.updatePost(postId, title, content, attachments, subscriptionsIds, attachmentIds.map(it => ({attachmentId: it.id, type: it.type})));
       
       // Обновляем локальные данные
       setPost(prev => prev ? {
@@ -153,10 +211,10 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
         content
       } : null);
       
-  // Обновляем список постов в WriterContext, если он доступен
-  if (writerContext && writerContext.refreshPosts) {
-    await writerContext.refreshPosts();
-  }
+      // Обновляем список постов в WriterContext, если он доступен
+      if (writerContext && writerContext.refreshPosts) {
+        await writerContext.refreshPosts();
+      }
       
       showNotification('Пост успешно обновлен', 'success');
     } catch (error) {
@@ -202,6 +260,10 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
     try {
       await writerService.likePost(user.id, postId);
       setIsLiked(true);
+      setPost(post ? {
+        ...post,
+        likes_count: post?.likes_count ? post?.likes_count + 1 : 1
+      } : null)
       showNotification('Лайк успешно поставлен', 'success');
     } catch (error) {
       console.error('Ошибка при постановке лайка:', error);
@@ -219,6 +281,10 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
     try {
       await writerService.unlikePost(user.id, postId);
       setIsLiked(false);
+      setPost(post ? {
+        ...post,
+        likes_count: post?.likes_count ? post?.likes_count - 1 : 0
+      } : null)
       showNotification('Лайк успешно убран', 'success');
     } catch (error) {
       console.error('Ошибка при удалении лайка:', error);
@@ -249,6 +315,36 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
       return '';
     }
   };
+  
+  // Редактировать комментарий
+  const editComment = async (commentId: string, text: string): Promise<void> => {
+    if (!user?.id) {
+      showNotification('Вы должны быть авторизованы, чтобы редактировать комментарий', 'error');
+      return;
+    }
+    
+    // Проверяем, является ли пользователь автором комментария
+    const isAuthor = await writerService.isCommentAuthor(user.id, commentId, postId);
+    if (!isAuthor) {
+      showNotification('Вы не можете редактировать чужой комментарий', 'error');
+      return;
+    }
+    
+    try {
+      await writerService.editComment(commentId, text);
+      await refreshComments();
+      showNotification('Комментарий успешно отредактирован', 'success');
+    } catch (error) {
+      console.error('Ошибка при редактировании комментария:', error);
+      showNotification('Ошибка при редактировании комментария', 'error');
+    }
+  };
+  
+  // Проверить, является ли пользователь автором комментария
+  const isCommentAuthor = async (commentId: string): Promise<boolean> => {
+    if (!user?.id) return false;
+    return await writerService.isCommentAuthor(user.id, commentId, postId);
+  };
 
   // Удалить комментарий
   const deleteComment = async (commentId: string): Promise<void> => {
@@ -258,7 +354,7 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
     }
 
     try {
-      await writerService.deleteComment(commentId);
+      await writerService.deleteComment(commentId, postId);
       await refreshComments();
       showNotification('Комментарий успешно удален', 'success');
     } catch (error) {
@@ -275,7 +371,7 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
     }
 
     try {
-      await writerService.likeComment(user.id, commentId);
+      await writerService.likeComment(user.id, commentId, postId);
       showNotification('Лайк комментарию успешно поставлен', 'success');
     } catch (error) {
       console.error('Ошибка при постановке лайка комментарию:', error);
@@ -291,7 +387,7 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
     }
 
     try {
-      await writerService.unlikeComment(user.id, commentId);
+      await writerService.unlikeComment(user.id, commentId, postId);
       showNotification('Лайк с комментария успешно убран', 'success');
     } catch (error) {
       console.error('Ошибка при удалении лайка с комментария:', error);
@@ -306,7 +402,7 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
     }
 
     try {
-      return await writerService.isCommentLiked(user.id, commentId);
+      return await writerService.isCommentLiked(user.id, commentId, postId);
     } catch (error) {
       console.error('Ошибка при проверке лайка комментария:', error);
       return false;
@@ -319,6 +415,7 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
         post,
         attachmentIds,
         commentIds,
+        comments,
         isLoading,
         isCurrentUserAuthor,
         isPostAvailable,
@@ -330,10 +427,12 @@ export const PostProvider: React.FC<PostProviderProps> = ({ postId, children }) 
         likePost,
         unlikePost,
         addComment,
+        editComment,
         deleteComment,
         likeComment,
         unlikeComment,
-        isCommentLiked
+        isCommentLiked,
+        isCommentAuthor
       }}
     >
       {children}

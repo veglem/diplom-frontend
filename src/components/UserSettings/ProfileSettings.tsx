@@ -9,6 +9,7 @@ import { useNavigate } from "react-router";
 import { UserService } from "../../services/userService";
 import BecomeAuthorModal from "./BecomeAuthorModal";
 import { EditableAvatar } from "../Avatar/EditableAvatar";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 interface ProfileSettingsProps {
     userData: UserData;
@@ -40,7 +41,7 @@ const TextFieldModal: React.FC<TextFieldModalProps> = ({
     const [isLoading, setIsLoading] = useState(false);
     const theme = useTheme();
     const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
-  
+    const {lang} = useLanguage();
 
     const handleClose = () => {
         setLocalValue(value);
@@ -107,7 +108,7 @@ const TextFieldModal: React.FC<TextFieldModalProps> = ({
                     color="inherit"
                     size={isSmallScreen ? "small" : "medium"}
                 >
-                    Отмена
+                    {lang.CANCEL}
                 </Button>
                 <Button
                     onClick={handleSave}
@@ -116,7 +117,7 @@ const TextFieldModal: React.FC<TextFieldModalProps> = ({
                     disabled={isLoading}
                     size={isSmallScreen ? "small" : "medium"}
                 >
-                    {isLoading ? 'Сохранение...' : 'Сохранить'}
+                    {isLoading ? lang.SAVING : lang.SAVE }
                 </Button>
             </DialogActions>
         </Dialog>
@@ -142,9 +143,9 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
     const theme = useTheme();
     const { isMobile } = useDevice();
     const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
-    const { logout, user, updateUser, becomeAuthor } = useAuth();
+    const { logout, user, becomeAuthor } = useAuth();
     const navigate = useNavigate();
-
+    const {lang} = useLanguage();
 
     // Состояния для модальных окон
     const [usernameModalOpen, setUsernameModalOpen] = useState(false);
@@ -184,7 +185,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                     mb: 3
                 }}
             >
-                Настройки профиля
+                {lang.PROFILE_SETTINGS}
             </Typography>
 
             {/* Аватар */}
@@ -207,7 +208,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                     gutterBottom
                     sx={{ mb: 1 }}
                 >
-                    Имя пользователя
+                    {lang.USERNAME}
                 </Typography>
                 
                 <Button
@@ -238,7 +239,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                     gutterBottom
                     sx={{ mb: 1 }}
                 >
-                    Логин
+                    {lang.LOGIN}
                 </Typography>
                 
                 <Button
@@ -269,7 +270,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                     gutterBottom
                     sx={{ mb: 1 }}
                 >
-                    Пароль
+                    {lang.PASSWORD}
                 </Typography>
                 
                 <Button
@@ -316,8 +317,8 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
             <TextFieldModal
                 open={usernameModalOpen}
                 onClose={() => setUsernameModalOpen(false)}
-                title="Изменение имени пользователя"
-                label="Имя пользователя"
+                title={lang.CHANGING_USRNAME}
+                label={lang.USERNAME}
                 value={userData.username}
                 onSave={handleSaveUsername}
             />
@@ -326,8 +327,8 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
             <TextFieldModal
                 open={loginModalOpen}
                 onClose={() => setLoginModalOpen(false)}
-                title="Изменение логина"
-                label="Логин"
+                title={lang.CHANGING_LOGIN}
+                label={lang.LOGIN}
                 value={userData.login}
                 onSave={handleSaveLogin}
             />

@@ -8,6 +8,7 @@ import { useDevice } from "../../utils/DeviceContext";
 import theme from "../../theme";
 import { Outlet, useNavigate } from "react-router";
 import { useLocation } from "react-router";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 export interface UserSettingsTabProps {
     userData: UserData;
@@ -31,7 +32,7 @@ const UserSettingsTab: React.FC<UserSettingsTabProps> = ({
     const theme = useTheme();
     const { isMobile } = useDevice();
     const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
-
+    const {lang} = useLanguage();
     const location = useLocation();
 
     // let activeTab;
@@ -73,9 +74,9 @@ const UserSettingsTab: React.FC<UserSettingsTabProps> = ({
                 variant="scrollable"
                 scrollButtons="auto"
             >
-                <Tab label="Профиль" value="profile" />
-                <Tab label="Уведомления" value="notifications" />
-                <Tab label="Оформление" value="customization" />
+                <Tab label={lang.PROFILE} value="profile" />
+                {/* <Tab label="Уведомления" value="notifications" /> */}
+                <Tab label={lang.CUSTOMIZATION} value="customization" />
             </Tabs>
             <Box margin={4} display='flex' flexDirection='row' justifyContent='center' width='70%'>
                 <Outlet context={{userData, onUpdateProfile, onChangePassword, onUpdateAvatar} as UserSettingsTabProps}></Outlet>

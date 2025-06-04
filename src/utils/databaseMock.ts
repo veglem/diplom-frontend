@@ -823,7 +823,7 @@ class MockDatabase {
       description: creator.description,
       posts_count: creator.posts_count,
       aim: creator.aim,
-      money_got: creator.money_got,
+      money_got: creator.balance,
       money_needed: creator.money_needed,
       profile_photo: creator.profile_photo,
       balance: creator.balance

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, TextField, DialogActions, Button } from '@mui/material';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface BecomeAuthorModalProps {
   open: boolean;
@@ -10,6 +11,7 @@ interface BecomeAuthorModalProps {
 const BecomeAuthorModal: React.FC<BecomeAuthorModalProps> = ({ open, onClose, onSubmit }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const { lang } = useLanguage();
 
   const handleSubmit = () => {
     onSubmit(name, description);
@@ -18,13 +20,13 @@ const BecomeAuthorModal: React.FC<BecomeAuthorModalProps> = ({ open, onClose, on
 
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Стать автором</DialogTitle>
+      <DialogTitle>{lang.BECOME_AUTHOR}</DialogTitle>
       <DialogContent>
         <TextField
           autoFocus
           margin="dense"
           id="name"
-          label="Название страницы автора"
+          label={lang.AUTHOR_PAGE_NAME}
           type="text"
           fullWidth
           value={name}
@@ -33,7 +35,7 @@ const BecomeAuthorModal: React.FC<BecomeAuthorModalProps> = ({ open, onClose, on
         <TextField
           margin="dense"
           id="description"
-          label="Описание страницы автора"
+          label={lang.AUTHOR_PAGE_DESCRIPTION}
           type="text"
           fullWidth
           multiline
@@ -43,8 +45,8 @@ const BecomeAuthorModal: React.FC<BecomeAuthorModalProps> = ({ open, onClose, on
         />
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Отмена</Button>
-        <Button onClick={handleSubmit} color="primary">Стать автором</Button>
+        <Button onClick={onClose}>{lang.CANCEL}</Button>
+        <Button onClick={handleSubmit} color="primary">{lang.BECOME_AUTHOR}</Button>
       </DialogActions>
     </Dialog>
   );

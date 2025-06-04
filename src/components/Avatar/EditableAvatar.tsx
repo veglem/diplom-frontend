@@ -4,6 +4,7 @@ import IconButton from "@mui/material/IconButton";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera"
 import ImageCropModal from "../UserSettings/ImageCropModal";
 import {v4 as uuidv4} from "uuid"
+import { Box } from "@mui/material";
 
 interface EditableAvatarProps extends BaseAvatarProps {
     onAvatarUpload: (file: File) => Promise<void>
@@ -12,6 +13,11 @@ interface EditableAvatarProps extends BaseAvatarProps {
 export const EditableAvatar: React.FC<EditableAvatarProps> = ({ src, username, size = 'small', onAvatarUpload }) => {
     const [cropModalOpen, setCropModalOpen] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+    let sizePx = size == 'small' ? 100 : 200
+    if (size == 'small-L') {
+        sizePx = 120
+    }
 
     const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -38,7 +44,7 @@ export const EditableAvatar: React.FC<EditableAvatarProps> = ({ src, username, s
         setSelectedImage(null);
     };
 
-    return <>
+    return <Box sx={{position: 'relative'}}>
         <BaseAvatar src={src} username={username} size={size}></BaseAvatar>
         <IconButton
             aria-label="change avatar"
@@ -46,7 +52,7 @@ export const EditableAvatar: React.FC<EditableAvatarProps> = ({ src, username, s
             sx={{
                 position: 'absolute',
                 bottom: -8,
-                right: 50,
+                right: 8,
                 backgroundColor: 'primary.main',
                 color: 'white',
                 '&:hover': {
@@ -77,5 +83,5 @@ export const EditableAvatar: React.FC<EditableAvatarProps> = ({ src, username, s
                 onSave={handleCropSave}
             />
         )}
-    </>
+    </Box>
 }

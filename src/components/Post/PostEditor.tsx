@@ -5,6 +5,7 @@ import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import Grid from '@mui/material/GridLegacy';
 import { Box, ButtonGroup, IconButton, Tooltip, Popover, Divider, Typography } from '@mui/material';
+import { useLanguage } from '../../contexts/LanguageContext';
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
 import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import StrikethroughSIcon from '@mui/icons-material/StrikethroughS';
@@ -38,6 +39,7 @@ const PostEditor: React.FC<PostEditorProps> = ({
   onAttachmentsChange,
   attachments = []
 }) => {
+  const { lang } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -141,7 +143,7 @@ const PostEditor: React.FC<PostEditorProps> = ({
       }}>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <ButtonGroup size="small">
-            <Tooltip title="Жирный">
+            <Tooltip title={lang.EDITOR_BOLD}>
               <IconButton
                 onClick={() => editor.chain().focus().toggleBold().run()}
                 color={editor.isActive('bold') ? 'primary' : 'default'}
@@ -150,7 +152,7 @@ const PostEditor: React.FC<PostEditorProps> = ({
               </IconButton>
             </Tooltip>
             
-            <Tooltip title="Курсив">
+            <Tooltip title={lang.EDITOR_ITALIC}>
               <IconButton
                 onClick={() => editor.chain().focus().toggleItalic().run()}
                 color={editor.isActive('italic') ? 'primary' : 'default'}
@@ -159,7 +161,7 @@ const PostEditor: React.FC<PostEditorProps> = ({
               </IconButton>
             </Tooltip>
             
-            <Tooltip title="Зачеркнутый">
+            <Tooltip title={lang.EDITOR_STRIKETHROUGH}>
               <IconButton
                 onClick={() => editor.chain().focus().toggleStrike().run()}
                 color={editor.isActive('strike') ? 'primary' : 'default'}
@@ -170,7 +172,7 @@ const PostEditor: React.FC<PostEditorProps> = ({
           </ButtonGroup>
 
           <Box>
-            <Tooltip title="Выбрать цвет текста">
+            <Tooltip title={lang.EDITOR_COLOR}>
               <IconButton
                 onClick={(event) => setAnchorEl(event.currentTarget)}
                 color={editor.isActive('textStyle', { color: currentColor }) ? 'primary' : 'default'}
@@ -226,12 +228,12 @@ const PostEditor: React.FC<PostEditorProps> = ({
         </Box>
 
         <Box>
-          <Tooltip title="Добавить изображение">
+          <Tooltip title={lang.EDITOR_ADD_IMAGE}>
             <IconButton onClick={handleImageUpload}>
               <ImageIcon />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Добавить видео">
+          <Tooltip title={lang.EDITOR_ADD_VIDEO}>
             <IconButton onClick={handleVideoUpload}>
               <VideocamIcon />
             </IconButton>
@@ -262,7 +264,7 @@ const PostEditor: React.FC<PostEditorProps> = ({
       {attachments.length > 0 && (
         <Box sx={{ p: 2, borderTop: '1px solid #e0e0e0' }}>
           <Typography variant="subtitle2" gutterBottom>
-            Прикрепленные файлы ({attachments.length})
+            {lang.EDITOR_ATTACHMENTS} ({attachments.length})
           </Typography>
           <Grid container spacing={2}>
             {attachments.map((file, index) => (

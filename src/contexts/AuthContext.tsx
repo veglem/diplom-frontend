@@ -2,10 +2,15 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../utils/db';
 import { NotificationSettings, UserData } from '../types/user';
 import { UserService } from '../services/userService';
+import { writerService } from '../services/writerService';
+import { api } from '../utils/api';
+import { useNotification } from './NotificationContext';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: UserData | null;
+  selfAuthorId: string | null;
+  isLoading: boolean
   login: (login: string, password: string) => Promise<boolean>;
   register: (login: string, username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -18,6 +23,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   user: null,
+  selfAuthorId: null,
+  isLoading: true,
   login: async () => false,
   register: async () => false,
   logout: async () => {},
@@ -32,160 +39,160 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
+  const [selfAuthorId, setSelfAuthorId] = useState<string | null>(null);
+  const { showNotification } = useNotification();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Проверяем сохраненную сессию при загрузке
-    const savedUserId = localStorage.getItem('userId');
-    if (savedUserId) {
-      const userProfile = db.userProfile(savedUserId);
-      const newPosts = localStorage.getItem('newPosts') == "true";
-      const news = localStorage.getItem('news') == "true";
-      const commentReplies = localStorage.getItem('commentReplies') == "true";
-      const commentLikes = localStorage.getItem('commentLikes') == "true";
-      if (userProfile) {
+    const func = async () => {
+      try {
+        setIsLoading(true)
+        const userData = await api.getProfile();
         setUser({
-          id: savedUserId,
-          username: userProfile.display_name,
-          login: userProfile.login,
-          avatar: userProfile.profile_photo,
+          id: userData.name,
+          login: userData.login,
+          username: userData.name,
+          avatar: userData.profile_photo,
+          isAuthor: userData.is_creator,
           notificationSettings: {
-            newPosts: newPosts,
-            news: news,
-            commentLikes: commentLikes,
-            commentReplies: commentReplies
+            newPosts: false,
+            news: false,
+            commentLikes: false,
+            commentReplies: false
           }
-        });
-        setIsAuthenticated(true);
+        })
+        if (userData.is_creator) {
+          setSelfAuthorId(userData.creator_id)
+        }
+        setIsAuthenticated(true)
+        console.log(userData);
+      } catch(e) {
+        setIsAuthenticated(false)
+      } finally {
+        setIsLoading(false)
       }
     }
+
+    func();
+    
   }, []);
 
   const login = async (login: string, password: string): Promise<boolean> => {
-    const userDetails = db.userAccessDetails(login);
-    if (userDetails && userDetails.password_hash === password) { // В реальном приложении здесь должно быть сравнение хешей
-      const userProfile = db.userProfile(userDetails.user_id);
-      if (userProfile) {
-        const creator = db.checkIfCreator(userDetails.user_id);
-        const newPosts = localStorage.getItem('newPosts') == "true";
-        const news = localStorage.getItem('news') == "true";
-        const commentReplies = localStorage.getItem('commentReplies') == "true";
-        const commentLikes = localStorage.getItem('commentLikes') == "true";
-        setUser({
-          id: userDetails.user_id,
-          username: userProfile.display_name,
-          login: userProfile.login,
-          avatar: userProfile.profile_photo,
-          isAuthor: !!creator,
-          notificationSettings: {
-            newPosts: newPosts,
-            news: news,
-            commentLikes: commentLikes,
-            commentReplies: commentReplies
-          }
-        });
-        setIsAuthenticated(true);
-        localStorage.setItem('userId', userDetails.user_id);
-        return true;
+    try {
+      await api.signIn({login: login, password_hash: password});
+      const userData = await api.getProfile();
+      setUser({
+        id: userData.name,
+        login: userData.login,
+        username: userData.name,
+        avatar: userData.profile_photo,
+        isAuthor: userData.is_creator,
+        notificationSettings: {
+          newPosts: false,
+          news: false,
+          commentLikes: false,
+          commentReplies: false
+        }
+      })
+      if (userData.is_creator) {
+        setSelfAuthorId(userData.creator_id)
       }
+      setIsAuthenticated(true)
+      return true
+    } catch(e) {
+      showNotification((e as Error).message, 'error')
+      return false
     }
-    return false;
   };
 
   const register = async (login: string, username: string, password: string): Promise<boolean> => {
-    // Проверяем, существует ли пользователь
-    const existingUser = db.userAccessDetails(login);
-    if (existingUser) {
-      return false;
-    }
-
-    // Создаем нового пользователя
-    const userId = Math.random().toString(36).substr(2, 9); // В реальном приложении использовать UUID
-    const result = db.addUser(userId, login, username, undefined, password); // В реальном приложении хешировать пароль
-    
-    if (result.user_id) {
-      const creator = db.checkIfCreator(userId);
-      const newPosts = localStorage.getItem('newPosts') == "true";
-      const news = localStorage.getItem('news') == "true";
-      const commentReplies = localStorage.getItem('commentReplies') == "true";
-      const commentLikes = localStorage.getItem('commentLikes') == "true";
+    try {
+      await api.signUp({login: login, password_hash: password, name: username})
+      const userData = await api.getProfile();
       setUser({
-        id: userId,
-        username,
-        login,
-        avatar: undefined,
-        isAuthor: !!creator,
+        id: userData.login,
+        login: userData.login,
+        username: userData.name,
+        avatar: userData.profile_photo,
+        isAuthor: userData.is_creator,
         notificationSettings: {
-          newPosts: newPosts,
-          news: news,
-          commentLikes: commentLikes,
-          commentReplies: commentReplies
+          newPosts: false,
+          news: false,
+          commentLikes: false,
+          commentReplies: false
         }
-      });
-      setIsAuthenticated(true);
-      localStorage.setItem('userId', userId);
-      return true;
+      })
+      if (userData.is_creator) {
+        setSelfAuthorId(userData.creator_id)
+      }
+      setIsAuthenticated(true)
+      return true
+    } catch (e) {
+      showNotification((e as Error).message, 'error')
+      return false
     }
-    return false;
   };
 
   const logout = async () => {
+    await api.logout();
     setIsAuthenticated(false);
+    setSelfAuthorId(null);
     setUser(null);
-    localStorage.removeItem('userId');
   };
 
   const updateUser = async (data: { username?: string; login?: string; avatar?: string; isAuthor?: boolean, notificationSettings?: NotificationSettings }) => {
-    if (user) {
-      console.log("user context updated")
-      if (data.notificationSettings) {
-        localStorage.setItem("newPosts", data.notificationSettings.newPosts ? "true" : "false")
-        localStorage.setItem("news", data.notificationSettings.news ? "true" : "false");
-        localStorage.setItem("commentReplies", data.notificationSettings.commentReplies ? "true" : "false")
-        localStorage.setItem("commentLikes", data.notificationSettings.commentLikes ? "true" : "false")
+    if (user != null) {
+      try {
+        await api.updateUserData({
+          login: data.login ?? user.login,
+          name: data.username ?? user.username,
+        });
         setUser({
           ...user,
-          notificationSettings: {...data.notificationSettings}
-        })
+          login: data.login ?? user.login,
+          username: data.username ?? user.username,
+        });
+      } catch(e) {
+        showNotification((e as Error).message, 'error')
       }
-      console.log(data)
-      setUser({
-        ...user,
-        ...data
-      });
     }
-    console.log(user)
   };
 
   const updatePassword = async (oldPassword: string, newPassword: string) => {
-    if (user?.id) {
-      UserService.changePassword(user?.id, oldPassword, newPassword)
-    } else {
-      throw Error("User not auntheficated");
+    try {
+      await api.updatePassword({old_password: oldPassword, new_password: newPassword})
+    } catch (e) {
+      showNotification((e as Error).message, 'error');
     }
   }
 
   const updateAvatar = async (file: File) => {
-    if (user?.id) {
-      const url = await UserService.updateUserAvatar(user?.id, file)
-      updateUser({
-        ...user,
-        avatar: url
-      })
+    try {
+      if (user != null) {
+        const avatar = await api.updateProfilePhoto(file, user?.avatar ?? '00000000-0000-0000-0000-000000000000')
+        setUser({
+          ...user,
+          avatar: avatar
+        })
+      }
+    } catch (e) {
+      showNotification((e as Error).message, 'error');
     }
   }
 
   const becomeAuthor = async (name: string, description: string) => {
     if (user?.id && !user.isAuthor) {
-      UserService.becomeCreator(user.id, name, description)
+      const authorId = await api.becameCreator({name: name, description: description});
       updateUser({
         ...user,
         isAuthor: true
       })
+      setSelfAuthorId(authorId);
     }
   }
-
+  console.log({ isAuthenticated, user, selfAuthorId })
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout, updateUser, updatePassword, updateAvatar, becomeAuthor }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, selfAuthorId, isLoading, login, register, logout, updateUser, updatePassword, updateAvatar, becomeAuthor }}>
       {children}
     </AuthContext.Provider>
   );

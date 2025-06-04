@@ -3,6 +3,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Box, IconBut
 import ReactCrop, { Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import CloseIcon from '@mui/icons-material/Close';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface ImageCropModalProps {
     open: boolean;
@@ -19,6 +20,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
 }) => {
     const theme = useTheme();
     const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
+    const { lang } = useLanguage();
     const [crop, setCrop] = useState<Crop>({
         unit: '%',
         width: 50,
@@ -90,7 +92,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
                 py: isSmallScreen ? 1.5 : 2,
                 fontSize: isSmallScreen ? '1.1rem' : '1.25rem'
             }}>
-                Обрезка изображения
+                {lang.IMAGE_CROP}
                 <IconButton
                     aria-label="close"
                     onClick={onClose}
@@ -124,7 +126,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
                         <img 
                             ref={(img) => setImageRef(img)}
                             src={imageUrl} 
-                            alt="Загруженное изображение"
+                            alt={lang.UPLOADED_IMAGE}
                             style={{ maxWidth: '100%', maxHeight: '500px' }}
                         />
                     </ReactCrop>
@@ -137,7 +139,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
                     color="inherit"
                     size={isSmallScreen ? "small" : "medium"}
                 >
-                    Отмена
+                    {lang.CANCEL}
                 </Button>
                 <Button
                     onClick={handleSave}
@@ -146,7 +148,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
                     disabled={isLoading}
                     size={isSmallScreen ? "small" : "medium"}
                 >
-                    {isLoading ? 'Сохранение...' : 'Сохранить'}
+                    {isLoading ? lang.SAVING : lang.SAVE}
                 </Button>
             </DialogActions>
         </Dialog>
